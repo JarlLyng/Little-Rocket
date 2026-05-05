@@ -4,8 +4,9 @@ export function createScene() {
   const scene = new THREE.Scene();
   scene.fog = new THREE.FogExp2(0x000010, 0.0002);
 
-  scene.add(new THREE.AmbientLight(0x404060, 0.6));
-  const sun = new THREE.DirectionalLight(0xffffff, 1);
+  // Lower ambient + brighter directional gives bump maps more pronounced shading.
+  scene.add(new THREE.AmbientLight(0x303048, 0.35));
+  const sun = new THREE.DirectionalLight(0xffffff, 1.4);
   sun.position.set(100, 50, 100);
   scene.add(sun);
 

@@ -20,7 +20,8 @@ export function createPlanetField(scene, anchor) {
         roughness: 0.95,
         metalness: 0.05,
         bumpMap,
-        bumpScale: 0.1,
+        bumpScale: 0.6,
+        roughnessMap: bumpMap,
       })
     );
     return {
@@ -39,15 +40,16 @@ export function createPlanetField(scene, anchor) {
     const group = new THREE.Group();
 
     const body = new THREE.Mesh(
-      new THREE.SphereGeometry(r, 24, 24),
+      new THREE.SphereGeometry(r, 32, 32),
       new THREE.MeshStandardMaterial({
         color,
-        roughness: 0.8,
+        roughness: 0.85,
         metalness: 0.1,
         emissive: color,
-        emissiveIntensity: 0.15,
+        emissiveIntensity: 0.08,
         bumpMap,
-        bumpScale: 0.1 + Math.random() * 0.15,
+        bumpScale: 0.5 + Math.random() * 0.4,
+        roughnessMap: bumpMap,
       })
     );
     body.userData.spinSpeed = (Math.random() - 0.5) * 0.005;
