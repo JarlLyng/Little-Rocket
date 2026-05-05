@@ -1,63 +1,64 @@
 # Little Rocket
 
-Et lille browserspil hvor man flyver gennem rummet i en raket. Bygget med [Three.js](https://threejs.org/).
+[![Co-created with AI](https://madebyhuman.iamjarl.com/badges/co-created-white.svg)](https://madebyhuman.iamjarl.com)
 
-## Spil det
+A tiny browser game where you fly a rocket through an endless field of procedurally placed planets. Built with [Three.js](https://threejs.org/) — no build step, no dependencies to install.
 
-Live: _kommer på GitHub Pages_
-
-Eller lokalt:
-
-```bash
-# Kør en hvilken som helst statisk server fra projektroden, fx:
-npx serve .
-# eller
-python3 -m http.server
-```
-
-Åbn så `http://localhost:8000` (eller den port serveren melder).
-
-> Det går ikke at åbne `index.html` direkte fra disken — ES-modul-imports kræver `http://`.
+**Play it:** [littlerocket.iamjarl.com](https://littlerocket.iamjarl.com/)
 
 ## Controls
 
-| Tast | Funktion |
+| Key | Action |
 |---|---|
-| ↑ / ↓ | Pitch (næse op/ned) |
-| ← / → eller A / D | Yaw (drej) |
+| ↑ / ↓ | Pitch |
+| ← / → or A / D | Yaw |
 | Q / E | Roll |
-| W / S | Hastighed op/ned |
-| Mus | Kig rundt |
+| W / S | Throttle up / down |
+| Mouse | Look around |
 
-## Struktur
+## Run locally
+
+The project is plain static files, but ES module imports require a real `http://` origin — opening `index.html` straight from disk will not work.
+
+```bash
+npx serve .
+# or
+python3 -m http.server
+```
+
+Then open the URL the server prints.
+
+## Project structure
 
 ```
-index.html              Entry point + importmap til Three
-styles/main.css         UI-styling, bruger IAMJARL design tokens
-vendor/iamjarl-tokens.css  Kopi af tokens fra iamjarl-design
+index.html                  Entry point + Three.js import map
+styles/main.css             UI styling, uses IAMJARL design tokens
+vendor/iamjarl-tokens.css   Vendored copy of the design system tokens
 src/
-  main.js               Game loop, input → bevægelse, kamera
-  scene.js              Scene, lys, stjernelag, renderer, kamera
-  rocket.js              Raket-mesh + glow
-  planets.js            Procedural planet-spawn og recycling
-  controls.js           Tastatur + mus
+  main.js                   Game loop, input, camera
+  scene.js                  Scene, lights, starfield, renderer
+  rocket.js                 Rocket mesh and engine glow
+  planets.js                Procedural planet spawning and recycling
+  controls.js               Keyboard and mouse input
 favicon.png
 ```
 
 ## Design system
 
-UI'et bruger tokens fra [iamjarl-design](https://github.com/JarlLyng/iamjarl-design).
-Selve 3D-scenen har sit eget rumvisuelle sprog og bruger ikke tokens.
+The UI chrome (start screen, button, HUD) uses tokens from [iamjarl-design](https://github.com/JarlLyng/iamjarl-design). The 3D scene has its own visual language and does not reference design tokens.
 
-For at opdatere tokens: kopiér `dist/css/tokens.css` fra design system-repoet
-til `vendor/iamjarl-tokens.css`.
+To update tokens, copy `dist/css/tokens.css` from the design system repo into `vendor/iamjarl-tokens.css`.
 
-## Deploy
+## Deployment
 
-GitHub Pages: Settings → Pages → Source: `main` branch, root. Den live URL
-bliver `https://jarllyng.github.io/Little-Rocket/`.
+Hosted on GitHub Pages with the custom domain `littlerocket.iamjarl.com`. There is no build step — everything in the repo root is served as-is.
 
-Ingen build-step — projektet er ren static.
+## Tech notes
+
+- Frame-rate independent movement via `THREE.Clock` delta-time, normalized to 60fps so existing tuning constants keep their feel
+- Animation loop pauses when the tab is hidden (`document.hidden`) to save battery
+- Input keys reset on `window.blur` so you don't keep accelerating after Cmd+Tab
+- Vector instances are reused inside the hot loop instead of being allocated per frame
 
 ## License
 
