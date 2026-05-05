@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="da">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#000000">
+  <meta name="description" content="Little Rocket — flyv gennem rummet i en lille raket.">
+
+  <meta property="og:title" content="Little Rocket">
+  <meta property="og:description" content="Flyv gennem rummet i en lille raket.">
+  <meta property="og:type" content="website">
+
+  <title>Little Rocket</title>
+
+  <link rel="icon" type="image/png" href="favicon.png">
+  <link rel="stylesheet" href="vendor/iamjarl-tokens.css">
+  <link rel="stylesheet" href="styles/main.css">
+
+  <script type="importmap">
+    { "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js" } }
+  </script>
+</head>
+<body>
+  <div id="start" class="overlay">
+    <h1>LITTLE ROCKET</h1>
+    <p class="hint">
+      Piletaster = drej · W/S = hastighed · Q/E = roll · Mus = kig rundt
+    </p>
+    <button id="start-btn" class="btn-primary" type="button">Start</button>
+  </div>
+
+  <div id="ui" hidden>
+    <span class="ui-label">Hastighed</span>
+    <span id="speed" class="ui-value">1.0</span>
+  </div>
+
+  <script type="module" src="src/main.js"></script>
+</body>
+</html>
