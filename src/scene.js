@@ -5,9 +5,12 @@ import * as THREE from 'three';
 const SUN_DIRECTION = new THREE.Vector3(0.4, 0.35, -1).normalize();
 const SUN_DISTANCE = 2200;
 
+const NEBULA_COLORS = [0x4422aa, 0x882244, 0x224488, 0x6644aa, 0x4488cc, 0xaa4466];
+
 export function createScene() {
   const scene = new THREE.Scene();
-  scene.fog = new THREE.FogExp2(0x000010, 0.0002);
+  scene.background = makeSkyGradient();
+  scene.fog = new THREE.FogExp2(0x080418, 0.00018);
 
   // Lower ambient + brighter directional gives bump maps more pronounced shading.
   scene.add(new THREE.AmbientLight(0x303048, 0.35));
@@ -45,7 +48,10 @@ export function createScene() {
   const streaks = makeStreakLayer(400, 4000);
   scene.add(streaks);
 
-  return { scene, sunMesh, halo, streaks };
+  const nebulae = makeNebulae(6);
+  for (const n of nebulae) scene.add(n.sprite);
+
+  return { scene, sunMesh, halo, streaks, nebulae };
 }
 
 function makeStarLayer(count, size, spread, color) {
@@ -108,6 +114,57 @@ export function updateStreaks(streaks, forward, speed, maxSpeed) {
 export function updateSun(sunMesh, halo, rocketPosition) {
   sunMesh.position.copy(rocketPosition).addScaledVector(SUN_DIRECTION, SUN_DISTANCE);
   halo.position.copy(sunMesh.position);
+}
+
+/**
+ * Each nebula carries a fixed direction + distance from the rocket; we re-pin
+ * it every frame so the nebulae feel infinitely distant. Same trick as the sun.
+ */
+export function updateNebulae(nebulae, rocketPosition) {
+  for (const n of nebulae) {
+    n.sprite.position.copy(rocketPosition).addScaledVector(n.direction, n.distance);
+  }
+}
+
+function makeNebulae(count) {
+  const nebulae = [];
+  for (let i = 0; i < count; i++) {
+    const color = NEBULA_COLORS[i % NEBULA_COLORS.length];
+    const scale = 1800 + Math.random() * 1400;
+    const sprite = new THREE.Sprite(new THREE.SpriteMaterial({
+      map: makeRadialGradient(color),
+      color: 0xffffff,
+      transparent: true,
+      opacity: 0.22 + Math.random() * 0.12,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+    }));
+    sprite.scale.set(scale, scale, 1);
+    nebulae.push({
+      sprite,
+      direction: new THREE.Vector3(
+        Math.random() - 0.5,
+        (Math.random() - 0.5) * 0.6,
+        Math.random() - 0.5
+      ).normalize(),
+      distance: 2500 + Math.random() * 1500,
+    });
+  }
+  return nebulae;
+}
+
+function makeSkyGradient() {
+  const size = 512;
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  const grad = ctx.createLinearGradient(0, 0, 0, size);
+  grad.addColorStop(0,    '#0c0628'); // deep purple-blue at the top
+  grad.addColorStop(0.55, '#02020a'); // near-black at the horizon
+  grad.addColorStop(1,    '#0a0418'); // hint of violet underneath
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, size, size);
+  return new THREE.CanvasTexture(canvas);
 }
 
 function makeRadialGradient(hexColor) {

@@ -1,9 +1,11 @@
 import * as THREE from 'three';
-import { createScene, createCamera, createRenderer, updateStreaks, updateSun } from './scene.js';
+import { createScene, createCamera, createRenderer, updateStreaks, updateSun, updateNebulae } from './scene.js';
 import { createRocket, updateGlow } from './rocket.js';
 import { createPlanetField } from './planets.js';
 import { createControls } from './controls.js';
 import { initAudio, setEngineLevel, suspendAudio } from './audio.js';
+import { createExhaust } from './exhaust.js';
+import { prefersReducedMotion } from './motion.js';
 
 const ROT_SPEED = 0.02;        // radians per 60fps-frame
 const ACCEL     = 0.05;        // speed delta per 60fps-frame
@@ -24,7 +26,7 @@ function start() {
 }
 
 function run() {
-  const { scene, sunMesh, halo, streaks } = createScene();
+  const { scene, sunMesh, halo, streaks, nebulae } = createScene();
   const camera = createCamera();
   const renderer = createRenderer();
   document.body.appendChild(renderer.domElement);
@@ -35,6 +37,9 @@ function run() {
   scene.add(rocketGroup);
 
   const planets = createPlanetField(scene, rocketGroup);
+  const exhaust = createExhaust();
+  scene.add(exhaust.object);
+
   const { keys, mouse } = createControls();
   const speedEl = document.getElementById('speed');
 
@@ -44,6 +49,8 @@ function run() {
   const camOffset = new THREE.Vector3();
   const lookTarget = new THREE.Vector3();
   const mouseOffset = new THREE.Vector3();
+  const enginePos = new THREE.Vector3();
+  const shakeOffset = new THREE.Vector3();
 
   window.addEventListener('resize', () => {
     camera.aspect = window.innerWidth / window.innerHeight;
@@ -80,12 +87,30 @@ function run() {
     setEngineLevel(speed, MAX_SPEED);
 
     // Speed-based FOV punch. Eased so it feels like acceleration, not a snap.
-    const targetFov = FOV_IDLE + (speed / MAX_SPEED) * (FOV_MAX - FOV_IDLE);
+    // Reduced-motion holds FOV at idle to avoid the wide-angle "rush".
+    const reducedMotion = prefersReducedMotion();
+    const targetFov = reducedMotion
+      ? FOV_IDLE
+      : FOV_IDLE + (speed / MAX_SPEED) * (FOV_MAX - FOV_IDLE);
     camera.fov += (targetFov - camera.fov) * 0.08;
     camera.updateProjectionMatrix();
 
     camOffset.set(0, 2.5, 8).applyQuaternion(rocketGroup.quaternion);
     camera.position.lerp(rocketGroup.position.clone().add(camOffset), 0.15);
+
+    // Camera shake at high throttle. Sells velocity. Skipped for reduced-motion.
+    if (!reducedMotion) {
+      const shakeT = Math.max(0, (speed / MAX_SPEED - 0.65) / 0.35);
+      if (shakeT > 0) {
+        const amp = shakeT * shakeT * 0.18;
+        shakeOffset.set(
+          (Math.random() - 0.5) * amp,
+          (Math.random() - 0.5) * amp,
+          0
+        ).applyQuaternion(rocketGroup.quaternion);
+        camera.position.add(shakeOffset);
+      }
+    }
 
     mouseOffset.set(mouse.x * 8, -mouse.y * 5, 0).applyQuaternion(rocketGroup.quaternion);
     lookTarget.copy(rocketGroup.position)
@@ -95,8 +120,15 @@ function run() {
     camera.up.set(0, 1, 0).applyQuaternion(rocketGroup.quaternion);
 
     planets.update(forward, dt);
-    updateStreaks(streaks, forward, speed, MAX_SPEED);
+    // Star streaks read as motion; when reduced-motion is set, force them invisible.
+    updateStreaks(streaks, forward, reducedMotion ? 0 : speed, MAX_SPEED);
     updateSun(sunMesh, halo, rocketGroup.position);
+    updateNebulae(nebulae, rocketGroup.position);
+
+    // Engine exhaust: emit from glow position in world space, then update all live particles.
+    rocket.userData.glow.getWorldPosition(enginePos);
+    exhaust.spawn(enginePos, forward, speed, dt);
+    exhaust.update(dt);
 
     renderer.render(scene, camera);
   }
