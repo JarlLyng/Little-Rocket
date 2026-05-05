@@ -187,19 +187,20 @@ The most useful knobs, organized by where they live. All are plain `const` decla
 
 ## Adding music
 
-Music is opt-in and not in the repo. To add loops:
+Four AAC loops ship in `audio/`. The first cycle plays them in the order they appear in the `LOOPS` array (so a curated opening sequence works); after that, the player picks at random with no immediate repeat.
 
-1. Drop MP3 files in `audio/` (e.g. `audio/loop-cosmic-drift.mp3`)
-2. Add their paths to the `LOOPS` array in `src/music.js`:
+To add or replace loops:
+
+1. Drop AAC/M4A files (or MP3) into `audio/`
+2. Add or update their paths in the `LOOPS` array in `src/music.js`:
    ```js
    const LOOPS = [
-     'audio/loop-cosmic-drift.mp3',
-     'audio/loop-deep-space.mp3',
+     'audio/00.m4a',
+     'audio/01.m4a',
    ];
    ```
-3. The ♪ button auto-appears in the top-right HUD. Mute state persists in localStorage.
 
-When a loop ends, the player picks another at random (never the one that just played, when there are 2+). See `audio/README.md` for format/length/loudness recommendations.
+The ♪ button auto-appears in the top-right HUD. Mute state persists in localStorage. See [`audio/README.md`](audio/README.md) for format conversion commands and loudness recommendations.
 
 ---
 

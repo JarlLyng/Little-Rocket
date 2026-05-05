@@ -1,11 +1,10 @@
 /**
- * Background music — random loop selection.
+ * Background music.
  *
- * Drop MP3 files into the `audio/` folder at the repo root, then add their
- * paths to LOOPS below. The module loads on demand (after the cinematic
- * intro), picks a loop at random, and queues another random loop when the
- * current one ends. The same loop never plays twice in a row when there
- * are 2+ entries.
+ * Plays loops in array order on the first cycle (so the player hears them
+ * in the intended sequence), then switches to random selection with no
+ * immediate repeat. AAC/M4A — modern browsers all support it; smaller
+ * files than MP3 at the same quality.
  *
  * If LOOPS is empty, the rest of the module no-ops and the music button
  * stays hidden. Engine audio still works either way.
@@ -14,9 +13,10 @@
  */
 
 const LOOPS = [
-  // Add your loop file paths here, e.g.:
-  // 'audio/loop-cosmic-drift.mp3',
-  // 'audio/loop-deep-space.mp3',
+  'audio/00.m4a',
+  'audio/01.m4a',
+  'audio/02.m4a',
+  'audio/03.m4a',
 ];
 
 const VOLUME = 0.4;
@@ -25,6 +25,8 @@ const STORAGE_KEY = 'little-rocket:music-muted';
 let current = null;
 let muted = false;
 let started = false;
+let initialIndex = 0;   // walks LOOPS in order on the first pass
+let lastUrl = null;     // for no-repeat random selection after the first pass
 
 export function hasMusic() {
   return LOOPS.length > 0;
@@ -48,19 +50,23 @@ export function isMuted() {
   return muted;
 }
 
-function pickRandom(excludeUrl) {
+function pickNext() {
+  // First pass: deterministic order so the curated sequence plays once.
+  if (initialIndex < LOOPS.length) return LOOPS[initialIndex++];
+  // Subsequent passes: random with no immediate repeat.
   if (LOOPS.length === 1) return LOOPS[0];
   let url;
   do { url = LOOPS[Math.floor(Math.random() * LOOPS.length)]; }
-  while (url === excludeUrl);
+  while (url === lastUrl);
   return url;
 }
 
-function playNext(excludeUrl) {
-  const url = pickRandom(excludeUrl);
+function playNext() {
+  const url = pickNext();
+  lastUrl = url;
   const audio = new Audio(url);
   audio.volume = muted ? 0 : VOLUME;
-  audio.addEventListener('ended', () => playNext(url), { once: true });
+  audio.addEventListener('ended', playNext, { once: true });
   audio.play().catch((err) => {
     // Autoplay blocked, file missing, or unsupported codec.
     // Fail silently — the game keeps working without music.
