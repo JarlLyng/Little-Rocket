@@ -29,6 +29,7 @@ import { createExhaust } from './exhaust.js';
 import { prefersReducedMotion } from './motion.js';
 import { startMusic, toggleMusic, isMuted, hasMusic } from './music.js';
 import { startStory } from './story.js';
+import { trackOnce, trackEvent } from './analytics.js';
 
 const ROT_SPEED = 0.02;        // radians per 60fps-frame
 const ACCEL     = 0.05;        // speed delta per 60fps-frame
@@ -52,6 +53,7 @@ function start() {
   // Audio context must be created from a user gesture, so we init it here
   // rather than at module load.
   initAudio();
+  trackOnce('game-started');
   run();
 }
 
@@ -96,6 +98,7 @@ function setupMusicButton() {
     const muted = toggleMusic();
     button.classList.toggle('muted', muted);
     button.setAttribute('aria-label', muted ? 'Unmute music' : 'Mute music');
+    trackEvent(muted ? 'music-mute' : 'music-unmute');
   });
 }
 
@@ -137,6 +140,7 @@ function run() {
       // Wait for the fade transition before hiding entirely
       setTimeout(() => { nearMissEl.hidden = true; }, 200);
     }, NEAR_MISS_VISIBLE_MS);
+    trackOnce('first-near-miss', { distance: Math.floor(distanceAU) });
   }
   const clock = new THREE.Clock();
   const forward = new THREE.Vector3();
@@ -197,6 +201,7 @@ function run() {
       if (keys['KeyE'])                       rocketGroup.rotateZ(-ROT_SPEED * dt);
       if (keys['KeyW']) speed = Math.min(speed + ACCEL * dt, MAX_SPEED);
       if (keys['KeyS']) speed = Math.max(speed - ACCEL * dt, 0);
+      if (speed >= MAX_SPEED) trackOnce('max-speed', { distance: Math.floor(distanceAU) });
     }
 
     speedEl.textContent = speed.toFixed(1);

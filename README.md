@@ -150,6 +150,7 @@ Two important conventions:
 | `story.js` | Sentence-by-sentence narrative with fade in/out and looping | `startStory` |
 | `controls.js` | Keyboard + mouse listeners, blur-resets all keys | `createControls` |
 | `motion.js` | `prefers-reduced-motion` matchMedia gate, live-updates | `prefersReducedMotion` |
+| `analytics.js` | Thin wrapper over Umami, with once-per-session helper | `trackEvent`, `trackOnce` |
 
 ---
 
@@ -234,7 +235,18 @@ GitHub Pages re-deploys on every push to `main`. Cache-Control is set to 10 minu
 
 ### Analytics
 
-Pageview counts go to a self-hosted [Umami](https://umami.is) instance at `umami-iamjarl.vercel.app`. No cookies, no IP storage, no cross-site tracking — just aggregate pageview totals. The script tag lives in `index.html`. Remove it (or fork without it) if you'd rather not be counted.
+Pageview counts and a small set of engagement events go to a self-hosted [Umami](https://umami.is) instance at `umami-iamjarl.vercel.app`. No cookies, no IP storage, no cross-site tracking. The script tag lives in `index.html`; the events are sent from `src/analytics.js`.
+
+Tracked events:
+
+| Event | When | Properties |
+|---|---|---|
+| `game-started` | First click of Start, once per session | – |
+| `max-speed` | First time speed reaches MAX_SPEED, once per session | `{ distance }` |
+| `first-near-miss` | First NEAR MISS trigger, once per session | `{ distance }` |
+| `music-mute` / `music-unmute` | Each click on the ♪ button | – |
+
+Distances are integer AU. Nothing user-identifying is sent. Remove the Umami script tag (or fork without it) if you'd rather not be counted.
 
 ---
 
