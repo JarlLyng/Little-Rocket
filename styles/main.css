@@ -244,8 +244,8 @@ h1 {
   bottom: 80px;
   left: 50%;
   transform: translateX(-50%);
-  max-width: min(640px, calc(100vw - 48px));
-  padding: 0 var(--ij-spacing-lg, 16px);
+  max-width: min(680px, calc(100vw - 16px));
+  padding: 0 var(--ij-spacing-sm, 8px);
   text-align: center;
   font-size: var(--ij-font-size-lg, 18px);
   line-height: var(--ij-line-height-relaxed, 28px);
