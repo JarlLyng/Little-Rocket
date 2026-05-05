@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { createScene, createCamera, createRenderer, updateStreaks, updateSun, updateNebulae } from './scene.js';
 import { createRocket, updateGlow } from './rocket.js';
 import { createPlanetField } from './planets.js';
+import { createAsteroidField } from './asteroids.js';
 import { createControls } from './controls.js';
 import { initAudio, setEngineLevel, suspendAudio } from './audio.js';
 import { createExhaust } from './exhaust.js';
@@ -70,6 +71,7 @@ function run() {
   scene.add(rocketGroup);
 
   const planets = createPlanetField(scene, rocketGroup);
+  const asteroids = createAsteroidField(scene, rocketGroup);
   const exhaust = createExhaust();
   scene.add(exhaust.object);
 
@@ -171,6 +173,7 @@ function run() {
     camera.up.set(0, 1, 0).applyQuaternion(rocketGroup.quaternion);
 
     planets.update(forward, dt, flashNearMiss);
+    asteroids.update(forward, dt);
     // Star streaks read as motion; when reduced-motion is set, force them invisible.
     updateStreaks(streaks, forward, reducedMotion ? 0 : speed, MAX_SPEED);
     updateSun(sunMesh, halo, rocketGroup.position);
