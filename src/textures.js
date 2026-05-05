@@ -1,31 +1,39 @@
 import * as THREE from 'three';
 
+const SIZE = 512;
+// Four octaves: large continents → fine surface noise. Each tiles via wrap-around sampling.
+const OCTAVES = [
+  { res: 6,   weight: 0.42 },
+  { res: 18,  weight: 0.28 },
+  { res: 48,  weight: 0.18 },
+  { res: 128, weight: 0.12 },
+];
+
 let cachedBump = null;
+let cachedMap = null;
 
 /**
- * Procedurally generated noise texture used for both bump and roughness on
- * planets and moons. One CanvasTexture, reused everywhere — cheap on memory.
+ * Generates two textures from a single multi-octave value-noise field:
  *
- * Implementation: multi-octave value noise. Three smoothstep-interpolated
- * grids of different frequencies are summed and contrast-stretched, giving
- * both large continent-like features and smaller surface roughness.
+ *   bump:  full 0–255 range. Used as bumpMap, roughnessMap, and aoMap.
+ *   map:   compressed range (≈0.5–1.15) so it modulates planet diffuse color
+ *          without black-clipping. Light noise → highlights, dark noise → dim.
+ *
+ * Generated once on first call. Both share the same underlying noise so the
+ * surface relief and the color patches read as the same terrain features.
  */
 export function getPlanetBumpTexture() {
-  if (cachedBump) return cachedBump;
+  if (!cachedBump) generate();
+  return cachedBump;
+}
 
-  const size = 512;
-  const canvas = document.createElement('canvas');
-  canvas.width = canvas.height = size;
-  const ctx = canvas.getContext('2d');
-  const img = ctx.createImageData(size, size);
-  const data = img.data;
+export function getPlanetColorMap() {
+  if (!cachedMap) generate();
+  return cachedMap;
+}
 
-  // Three octaves: large, medium, fine. Each tiles seamlessly via wrap-around sampling.
-  const octaves = [
-    { res: 8,  weight: 0.55 },
-    { res: 24, weight: 0.30 },
-    { res: 64, weight: 0.15 },
-  ].map(({ res, weight }) => {
+function generate() {
+  const grids = OCTAVES.map(({ res, weight }) => {
     const grid = new Float32Array(res * res);
     for (let i = 0; i < grid.length; i++) grid[i] = Math.random();
     return { res, weight, grid };
@@ -36,15 +44,15 @@ export function getPlanetBumpTexture() {
     return oct.grid[((iy + r) % r) * r + ((ix + r) % r)];
   };
 
+  const buf = new Float32Array(SIZE * SIZE);
   let min = Infinity, max = -Infinity;
-  const buf = new Float32Array(size * size);
 
-  for (let y = 0; y < size; y++) {
-    for (let x = 0; x < size; x++) {
+  for (let y = 0; y < SIZE; y++) {
+    for (let x = 0; x < SIZE; x++) {
       let v = 0;
-      for (const oct of octaves) {
-        const fx = (x / size) * oct.res;
-        const fy = (y / size) * oct.res;
+      for (const oct of grids) {
+        const fx = (x / SIZE) * oct.res;
+        const fy = (y / SIZE) * oct.res;
         const ix = Math.floor(fx);
         const iy = Math.floor(fy);
         const tx = fx - ix;
@@ -55,27 +63,58 @@ export function getPlanetBumpTexture() {
         const bot = sample(oct, ix, iy + 1) + (sample(oct, ix + 1, iy + 1) - sample(oct, ix, iy + 1)) * sx;
         v += (top + (bot - top) * sy) * oct.weight;
       }
-      buf[y * size + x] = v;
+      buf[y * SIZE + x] = v;
       if (v < min) min = v;
       if (v > max) max = v;
     }
   }
 
-  // Contrast-stretch to use the full 0..1 range, then push toward extremes
-  // with a smoothstep-like curve so light/dark patches read as terrain.
   const range = max - min || 1;
+  const bumpCanvas = makeCanvas();
+  const mapCanvas = makeCanvas();
+  const bumpCtx = bumpCanvas.getContext('2d');
+  const mapCtx = mapCanvas.getContext('2d');
+  const bumpImg = bumpCtx.createImageData(SIZE, SIZE);
+  const mapImg = mapCtx.createImageData(SIZE, SIZE);
+  const bumpData = bumpImg.data;
+  const mapData = mapImg.data;
+
   for (let i = 0; i < buf.length; i++) {
     const n = (buf[i] - min) / range;
-    const stretched = n * n * (3 - 2 * n); // smoothstep — adds contrast
-    const c = Math.floor(stretched * 255);
-    const idx = i * 4;
-    data[idx] = data[idx + 1] = data[idx + 2] = c;
-    data[idx + 3] = 255;
-  }
-  ctx.putImageData(img, 0, 0);
+    // Pow with 1.4 pushes the curve toward darker valleys (more continents/oceans
+    // contrast). Smoothstep would have softened it.
+    const shaped = Math.pow(n, 1.4);
 
-  cachedBump = new THREE.CanvasTexture(canvas);
+    const bumpV = Math.floor(shaped * 255);
+    // Diffuse multiplier: maps 0 → 0.50 and 1 → 1.10, so dark patches darken
+    // the planet color to half-brightness without ever fully blacking out.
+    const diffuseMul = 0.50 + shaped * 0.60;
+    const mapV = Math.min(255, Math.floor(diffuseMul * 255));
+
+    const idx = i * 4;
+    bumpData[idx] = bumpData[idx + 1] = bumpData[idx + 2] = bumpV;
+    bumpData[idx + 3] = 255;
+    mapData[idx]  = mapData[idx + 1]  = mapData[idx + 2]  = mapV;
+    mapData[idx + 3] = 255;
+  }
+
+  bumpCtx.putImageData(bumpImg, 0, 0);
+  mapCtx.putImageData(mapImg, 0, 0);
+
+  cachedBump = new THREE.CanvasTexture(bumpCanvas);
   cachedBump.wrapS = cachedBump.wrapT = THREE.RepeatWrapping;
   cachedBump.anisotropy = 4;
-  return cachedBump;
+
+  cachedMap = new THREE.CanvasTexture(mapCanvas);
+  cachedMap.wrapS = cachedMap.wrapT = THREE.RepeatWrapping;
+  cachedMap.anisotropy = 4;
+  // The color map carries diffuse data — must be sRGB so Three's tonemap
+  // doesn't double-darken it.
+  cachedMap.colorSpace = THREE.SRGBColorSpace;
+}
+
+function makeCanvas() {
+  const c = document.createElement('canvas');
+  c.width = c.height = SIZE;
+  return c;
 }

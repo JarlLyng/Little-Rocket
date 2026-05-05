@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { getPlanetBumpTexture } from './textures.js';
+import { getPlanetBumpTexture, getPlanetColorMap } from './textures.js';
 
 // Scratch vector reused inside the per-frame loop to avoid Vector3 churn.
 const _scratch = new THREE.Vector3();
@@ -13,6 +13,7 @@ const TWO_MOON_CHANCE = 0.05; // additional chance on top of one-moon
 export function createPlanetField(scene, anchor) {
   const planets = [];
   const bumpMap = getPlanetBumpTexture();
+  const colorMap = getPlanetColorMap();
 
   function makeMoon(planetRadius) {
     const moonRadius = planetRadius * (0.18 + Math.random() * 0.22);
@@ -22,6 +23,7 @@ export function createPlanetField(scene, anchor) {
       moonGeo,
       new THREE.MeshStandardMaterial({
         color: 0xbbbbbb,
+        map: colorMap,
         roughness: 0.95,
         metalness: 0.05,
         bumpMap,
@@ -53,6 +55,7 @@ export function createPlanetField(scene, anchor) {
       bodyGeo,
       new THREE.MeshStandardMaterial({
         color,
+        map: colorMap,
         roughness: 0.85,
         metalness: 0.1,
         emissive: color,
