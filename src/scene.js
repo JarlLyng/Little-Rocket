@@ -137,7 +137,7 @@ function makeNebulae(count) {
       transparent: true,
       // Very low opacity — nebulae should read as a hint of color in deep
       // space, not a dominant background element.
-      opacity: 0.06 + Math.random() * 0.05,
+      opacity: 0.03 + Math.random() * 0.03,
       depthWrite: false,
       blending: THREE.AdditiveBlending,
     }));

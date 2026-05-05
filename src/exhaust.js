@@ -24,7 +24,7 @@ export function createExhaust() {
   geo.setAttribute('color',    new THREE.BufferAttribute(colors, 3));
 
   const mat = new THREE.PointsMaterial({
-    size: 0.15,
+    size: 0.09,
     vertexColors: true,
     transparent: true,
     blending: THREE.AdditiveBlending,
