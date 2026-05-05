@@ -28,6 +28,8 @@ A tiny browser game where you fly a rocket through an endless field of procedura
 
 ## Controls
 
+**Desktop:**
+
 | Key | Action |
 |---|---|
 | ↑ / ↓ | Pitch |
@@ -37,6 +39,8 @@ A tiny browser game where you fly a rocket through an endless field of procedura
 | Mouse | Look around |
 | ? button | Show controls hint |
 | ♪ button | Toggle music *(visible only if loops are configured)* |
+
+**Touch (phone, tablet):** drag the **left half** of the screen to steer (virtual joystick that re-centers on release), drag the **right half** vertically to set throttle (sticky — keeps the position when you let go). A vertical bar on the right edge mirrors your current speed.
 
 The HUD shows speed and distance traveled (in AU). A subtle **NEAR MISS** flash fires when you pass within 2.2× a planet's radius.
 

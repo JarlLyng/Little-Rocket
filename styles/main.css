@@ -12,6 +12,12 @@ html, body {
   line-height: var(--ij-line-height-normal, 24px);
   overflow: hidden;
   -webkit-font-smoothing: antialiased;
+  /* Disable native touch behaviors so the canvas owns drags and pinches. */
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior: none;
 }
 
 canvas { display: block; }
@@ -44,13 +50,12 @@ canvas { display: block; }
 
 .overlay[hidden] { display: none; }
 
-/* Show desktop overlay only on devices with hover + fine pointer (mouse/trackpad).
-   Touch-only devices (phones, tablets) get the mobile warning instead. */
-.overlay--mobile { display: none; }
-
+/* Hint variants: desktop shows keyboard controls, touch shows drag controls.
+   Both share the same overlay so the Start button works the same everywhere. */
+.hint--touch { display: none; }
 @media (hover: none) and (pointer: coarse) {
-  .overlay--desktop { display: none; }
-  .overlay--mobile  { display: flex; }
+  .hint--desktop { display: none; }
+  .hint--touch   { display: block; }
 }
 
 h1 {
@@ -189,6 +194,35 @@ h1 {
 }
 #near-miss[hidden] { display: none; }
 #near-miss.visible { opacity: 1; }
+
+/* Throttle bar: vertical fill on the right edge that mirrors current speed.
+   Visible only on touch devices (no benefit when keyboard handles throttle). */
+#throttle-bar {
+  position: fixed;
+  right: var(--ij-spacing-md, 12px);
+  top: 50%;
+  transform: translateY(-50%);
+  width: 6px;
+  height: 38vh;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--ij-color-border-subtle, rgba(255, 255, 255, 0.12));
+  border-radius: 3px;
+  pointer-events: none;
+  display: none;
+}
+#throttle-fill {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  background: var(--ij-color-primary, #D0FF00);
+  border-radius: 3px;
+  height: 0%;
+  transition: height 100ms ease-out;
+}
+@media (hover: none) and (pointer: coarse) {
+  #throttle-bar:not([hidden]) { display: block; }
+}
 
 /* Sci-fi narration — fades in/out at the bottom of the screen */
 #story {

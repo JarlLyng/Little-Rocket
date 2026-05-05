@@ -2,7 +2,7 @@
 <html lang="en" class="dark">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#000000">
   <meta name="description" content="Little Rocket — fly through space in a tiny rocket.">
 
@@ -29,19 +29,15 @@
   <script defer src="https://umami-iamjarl.vercel.app/script.js" data-website-id="e87f6fc4-7990-41bf-9f42-317caa56c993"></script>
 </head>
 <body>
-  <div id="start" class="overlay overlay--desktop">
+  <div id="start" class="overlay">
     <h1>LITTLE ROCKET</h1>
-    <p class="hint">
+    <p class="hint hint--desktop">
       Arrow keys = steer · W/S = throttle · Q/E = roll · Mouse = look around
     </p>
-    <button id="start-btn" class="btn-primary" type="button">Start</button>
-  </div>
-
-  <div id="mobile-warning" class="overlay overlay--mobile">
-    <h1>LITTLE ROCKET</h1>
-    <p class="hint">
-      This game needs a keyboard and mouse. Open it on a desktop or laptop to fly.
+    <p class="hint hint--touch">
+      Drag the left half of the screen to steer · drag the right half to throttle
     </p>
+    <button id="start-btn" class="btn-primary" type="button">Start</button>
   </div>
 
   <div id="intro-overlay" hidden></div>
@@ -65,6 +61,10 @@
   <button id="music-button" type="button" hidden aria-label="Toggle music">♪</button>
 
   <div id="near-miss" hidden>NEAR MISS</div>
+
+  <div id="throttle-bar" hidden aria-hidden="true">
+    <div id="throttle-fill"></div>
+  </div>
 
   <div id="story" hidden></div>
 

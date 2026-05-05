@@ -118,10 +118,12 @@ function run() {
   const exhaust = createExhaust();
   scene.add(exhaust.object);
 
-  const { keys, mouse } = createControls();
+  const { keys, mouse, touchSteer, touchThrottle } = createControls();
   const speedEl = document.getElementById('speed');
   const distanceEl = document.getElementById('distance');
   const nearMissEl = document.getElementById('near-miss');
+  const throttleFill = document.getElementById('throttle-fill');
+  const isTouch = window.matchMedia('(hover: none) and (pointer: coarse)').matches;
 
   const introOverlay = document.getElementById('intro-overlay');
 
@@ -186,27 +188,46 @@ function run() {
         introOverlay.hidden = true;
         document.getElementById('ui').hidden = false;
         document.getElementById('hint-button').hidden = false;
+        if (isTouch) document.getElementById('throttle-bar').hidden = false;
         setupHint();
         setupMusicButton();
         startMusic();
         startStory();
       }
     } else {
-      // Normal input — only after the intro hands over control
-      if (keys['ArrowUp'])                    rocketGroup.rotateX(-ROT_SPEED * dt);
-      if (keys['ArrowDown'])                  rocketGroup.rotateX( ROT_SPEED * dt);
-      if (keys['ArrowLeft']  || keys['KeyA']) rocketGroup.rotateY( ROT_SPEED * dt);
-      if (keys['ArrowRight'] || keys['KeyD']) rocketGroup.rotateY(-ROT_SPEED * dt);
-      if (keys['KeyQ'])                       rocketGroup.rotateZ( ROT_SPEED * dt);
-      if (keys['KeyE'])                       rocketGroup.rotateZ(-ROT_SPEED * dt);
-      if (keys['KeyW']) speed = Math.min(speed + ACCEL * dt, MAX_SPEED);
-      if (keys['KeyS']) speed = Math.max(speed - ACCEL * dt, 0);
+      // Combine keyboard arrows + virtual joystick. Each axis is the sum so
+      // both inputs are usable at once — useful for hybrid devices like
+      // iPads with attached keyboards.
+      let pitch = 0, yaw = 0;
+      if (keys['ArrowUp'])                    pitch -= 1;
+      if (keys['ArrowDown'])                  pitch += 1;
+      if (keys['ArrowLeft']  || keys['KeyA']) yaw   += 1;
+      if (keys['ArrowRight'] || keys['KeyD']) yaw   -= 1;
+      pitch += touchSteer.y;
+      yaw   -= touchSteer.x;
+
+      if (pitch) rocketGroup.rotateX(pitch * ROT_SPEED * dt);
+      if (yaw)   rocketGroup.rotateY(yaw   * ROT_SPEED * dt);
+      if (keys['KeyQ']) rocketGroup.rotateZ( ROT_SPEED * dt);
+      if (keys['KeyE']) rocketGroup.rotateZ(-ROT_SPEED * dt);
+
+      if (touchThrottle.value !== null) {
+        // Touch throttle is sticky and absolute; ease toward target speed.
+        const target = touchThrottle.value * MAX_SPEED;
+        speed += (target - speed) * 0.12;
+      } else {
+        if (keys['KeyW']) speed = Math.min(speed + ACCEL * dt, MAX_SPEED);
+        if (keys['KeyS']) speed = Math.max(speed - ACCEL * dt, 0);
+      }
       if (speed >= MAX_SPEED) trackOnce('max-speed', { distance: Math.floor(distanceAU) });
     }
 
     speedEl.textContent = speed.toFixed(1);
     distanceAU += speed * realDt;
     distanceEl.textContent = `${Math.floor(distanceAU)} AU`;
+    if (isTouch && introDone) {
+      throttleFill.style.height = `${(speed / MAX_SPEED) * 100}%`;
+    }
 
     forward.set(0, 0, -1).applyQuaternion(rocketGroup.quaternion);
     rocketGroup.position.addScaledVector(forward, speed * dt);
@@ -255,8 +276,9 @@ function run() {
       }
     }
 
-    // Mouse-look is disabled during intro so the cinematic stays composed.
-    const mouseGate = introDone ? 1 : 0;
+    // Mouse-look is disabled during intro and on touch devices (drags would
+    // double up with the steering joystick).
+    const mouseGate = (introDone && !isTouch) ? 1 : 0;
     mouseOffset.set(mouse.x * 8 * mouseGate, -mouse.y * 5 * mouseGate, 0)
       .applyQuaternion(rocketGroup.quaternion);
     lookTarget.copy(rocketGroup.position)
