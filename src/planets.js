@@ -1,34 +1,59 @@
 import * as THREE from 'three';
+import { getPlanetBumpTexture } from './textures.js';
 
 const COLORS = [0xff6644, 0x44aaff, 0xffaa44, 0x88ff88, 0xaa66ff, 0xffdd66, 0xff88aa];
 const TARGET_COUNT = 40;
+const RING_CHANCE = 0.25;
+const ONE_MOON_CHANCE = 0.30;
+const TWO_MOON_CHANCE = 0.05; // additional chance on top of one-moon
 
 export function createPlanetField(scene, anchor) {
   const planets = [];
+  const bumpMap = getPlanetBumpTexture();
+
+  function makeMoon(planetRadius) {
+    const moonRadius = planetRadius * (0.18 + Math.random() * 0.22);
+    const mesh = new THREE.Mesh(
+      new THREE.SphereGeometry(moonRadius, 16, 16),
+      new THREE.MeshStandardMaterial({
+        color: 0xbbbbbb,
+        roughness: 0.95,
+        metalness: 0.05,
+        bumpMap,
+        bumpScale: 0.1,
+      })
+    );
+    return {
+      mesh,
+      distance: planetRadius * (1.7 + Math.random() * 1.0),
+      angle: Math.random() * Math.PI * 2,
+      speed: (Math.random() < 0.5 ? -1 : 1) * (0.005 + Math.random() * 0.01),
+      tilt: (Math.random() - 0.5) * 0.8, // radians, gives orbits non-equatorial planes
+    };
+  }
 
   function spawn(initial = false) {
     const r = 2 + Math.random() * 8;
     const color = COLORS[Math.floor(Math.random() * COLORS.length)];
-    const planet = new THREE.Mesh(
+
+    const group = new THREE.Group();
+
+    const body = new THREE.Mesh(
       new THREE.SphereGeometry(r, 24, 24),
       new THREE.MeshStandardMaterial({
-        color, roughness: 0.8, metalness: 0.1,
-        emissive: color, emissiveIntensity: 0.15,
+        color,
+        roughness: 0.8,
+        metalness: 0.1,
+        emissive: color,
+        emissiveIntensity: 0.15,
+        bumpMap,
+        bumpScale: 0.1 + Math.random() * 0.15,
       })
     );
+    body.userData.spinSpeed = (Math.random() - 0.5) * 0.005;
+    group.add(body);
 
-    const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(anchor.quaternion);
-    const right   = new THREE.Vector3(1, 0,  0).applyQuaternion(anchor.quaternion);
-    const up      = new THREE.Vector3(0, 1,  0).applyQuaternion(anchor.quaternion);
-
-    const dist = initial ? 400 + Math.random() * 1200 : 1200 + Math.random() * 600;
-    const spread = 800;
-    planet.position.copy(anchor.position)
-      .add(forward.multiplyScalar(dist))
-      .add(right.multiplyScalar((Math.random() - 0.5) * spread))
-      .add(up.multiplyScalar((Math.random() - 0.5) * spread));
-
-    if (Math.random() < 0.25) {
+    if (Math.random() < RING_CHANCE) {
       const ring = new THREE.Mesh(
         new THREE.RingGeometry(r * 1.4, r * 1.9, 48),
         new THREE.MeshBasicMaterial({
@@ -36,12 +61,37 @@ export function createPlanetField(scene, anchor) {
         })
       );
       ring.rotation.x = Math.PI / 2 + (Math.random() - 0.5) * 0.5;
-      planet.add(ring);
+      group.add(ring);
     }
 
-    planet.userData.spinSpeed = (Math.random() - 0.5) * 0.005;
-    scene.add(planet);
-    planets.push(planet);
+    const moons = [];
+    if (Math.random() < ONE_MOON_CHANCE) {
+      const m = makeMoon(r);
+      group.add(m.mesh);
+      moons.push(m);
+      if (Math.random() < TWO_MOON_CHANCE) {
+        const m2 = makeMoon(r);
+        group.add(m2.mesh);
+        moons.push(m2);
+      }
+    }
+
+    group.userData.body = body;
+    group.userData.moons = moons;
+
+    const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(anchor.quaternion);
+    const right   = new THREE.Vector3(1, 0,  0).applyQuaternion(anchor.quaternion);
+    const up      = new THREE.Vector3(0, 1,  0).applyQuaternion(anchor.quaternion);
+
+    const dist = initial ? 400 + Math.random() * 1200 : 1200 + Math.random() * 600;
+    const spread = 800;
+    group.position.copy(anchor.position)
+      .add(forward.multiplyScalar(dist))
+      .add(right.multiplyScalar((Math.random() - 0.5) * spread))
+      .add(up.multiplyScalar((Math.random() - 0.5) * spread));
+
+    scene.add(group);
+    planets.push(group);
   }
 
   for (let i = 0; i < TARGET_COUNT; i++) spawn(true);
@@ -49,13 +99,29 @@ export function createPlanetField(scene, anchor) {
   function update(forward, dt) {
     for (let i = planets.length - 1; i >= 0; i--) {
       const p = planets[i];
-      // dt is normalized to 60fps; spinSpeed was tuned for per-frame use
-      p.rotation.y += p.userData.spinSpeed * dt;
+      p.userData.body.rotation.y += p.userData.body.userData.spinSpeed * dt;
+
+      for (const moon of p.userData.moons) {
+        moon.angle += moon.speed * dt;
+        const sa = Math.sin(moon.angle);
+        const ca = Math.cos(moon.angle);
+        moon.mesh.position.set(
+          ca * moon.distance,
+          sa * Math.sin(moon.tilt) * moon.distance,
+          sa * Math.cos(moon.tilt) * moon.distance
+        );
+      }
+
       const toPlanet = p.position.clone().sub(anchor.position);
       if (toPlanet.dot(forward) < -200 || toPlanet.length() > 2500) {
         scene.remove(p);
-        p.geometry.dispose();
-        p.material.dispose();
+        p.traverse((obj) => {
+          if (obj.isMesh) {
+            obj.geometry.dispose();
+            obj.material.dispose();
+            // Note: bumpMap texture is shared and intentionally NOT disposed here.
+          }
+        });
         planets.splice(i, 1);
       }
     }
