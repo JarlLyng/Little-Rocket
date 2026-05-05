@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { createScene, createCamera, createRenderer, updateStreaks, updateSun, updateNebulae, updateStarAnchors } from './scene.js';
+import { createScene, createCamera, createRenderer, updateStreaks, updateSuns, updateNebulae, updateStarAnchors } from './scene.js';
 import { createRocket, updateGlow } from './rocket.js';
 import { createPlanetField } from './planets.js';
 import { createAsteroidField } from './asteroids.js';
@@ -60,7 +60,7 @@ function setupHint() {
 }
 
 function run() {
-  const { scene, sunMesh, halo, streaks, nebulae, starLayers } = createScene();
+  const { scene, suns, streaks, nebulae, starLayers } = createScene();
   const camera = createCamera();
   const renderer = createRenderer();
   document.body.appendChild(renderer.domElement);
@@ -178,7 +178,7 @@ function run() {
     asteroids.update(forward, dt);
     // Star streaks read as motion; when reduced-motion is set, force them invisible.
     updateStreaks(streaks, forward, reducedMotion ? 0 : speed, MAX_SPEED);
-    updateSun(sunMesh, halo, rocketGroup.position);
+    updateSuns(suns, rocketGroup.position);
     updateNebulae(nebulae, rocketGroup.position);
     updateStarAnchors(starLayers, streaks, rocketGroup.position);
 

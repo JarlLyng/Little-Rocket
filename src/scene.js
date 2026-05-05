@@ -2,8 +2,27 @@ import * as THREE from 'three';
 
 // Forward-right-up of the default rocket orientation (rocket starts pointing -z).
 // Putting the sun here means the player sees it the moment the game starts.
-const SUN_DIRECTION = new THREE.Vector3(0.4, 0.35, -1).normalize();
-const SUN_DISTANCE = 2200;
+// Binary star system. The warm primary sits forward-right-up; a cooler,
+// smaller companion sits forward-left-up. Both are visible from the default
+// rocket orientation.
+const SUNS = [
+  {
+    direction: new THREE.Vector3(0.4, 0.35, -1).normalize(),
+    distance: 2200,
+    meshSize: 45,
+    haloSize: 420,
+    color: 0xfff0c8,
+    lightIntensity: 0.95,
+  },
+  {
+    direction: new THREE.Vector3(-0.5, 0.25, -0.9).normalize(),
+    distance: 2500,
+    meshSize: 26,
+    haloSize: 270,
+    color: 0xc8d8ff,
+    lightIntensity: 0.55,
+  },
+];
 
 const NEBULA_COLORS = [0x4422aa, 0x882244, 0x224488, 0x6644aa, 0x4488cc, 0xaa4466];
 
@@ -12,31 +31,36 @@ export function createScene() {
   scene.background = makeSkyGradient();
   scene.fog = new THREE.FogExp2(0x000008, 0.0002);
 
-  // Lower ambient + brighter directional gives bump maps more pronounced shading.
-  scene.add(new THREE.AmbientLight(0x303048, 0.35));
-  const sun = new THREE.DirectionalLight(0xffffff, 1.4);
-  sun.position.copy(SUN_DIRECTION).multiplyScalar(100);
-  scene.add(sun);
-  scene.add(sun.target); // target defaults to (0,0,0); explicit add lets us move it later
+  // Lower ambient compensates for two directional lights summing close to
+  // the previous single-sun intensity.
+  scene.add(new THREE.AmbientLight(0x303048, 0.32));
 
-  // Visible sun: bright sphere + radial halo sprite. Both follow the rocket
-  // each frame so the sun stays "infinitely far" in a fixed direction.
-  const sunMesh = new THREE.Mesh(
-    new THREE.SphereGeometry(45, 32, 32),
-    new THREE.MeshBasicMaterial({ color: 0xfff0c8 })
-  );
-  scene.add(sunMesh);
+  // Build each sun: directional light + visible mesh + additive halo.
+  const suns = SUNS.map((spec) => {
+    const light = new THREE.DirectionalLight(spec.color, spec.lightIntensity);
+    light.position.copy(spec.direction).multiplyScalar(100);
+    scene.add(light);
+    scene.add(light.target);
 
-  const halo = new THREE.Sprite(new THREE.SpriteMaterial({
-    map: makeRadialGradient(0xfff0c8),
-    color: 0xffffff,
-    transparent: true,
-    opacity: 0.85,
-    depthWrite: false,
-    blending: THREE.AdditiveBlending,
-  }));
-  halo.scale.set(420, 420, 1);
-  scene.add(halo);
+    const mesh = new THREE.Mesh(
+      new THREE.SphereGeometry(spec.meshSize, 32, 32),
+      new THREE.MeshBasicMaterial({ color: spec.color })
+    );
+    scene.add(mesh);
+
+    const halo = new THREE.Sprite(new THREE.SpriteMaterial({
+      map: makeRadialGradient(spec.color),
+      color: 0xffffff,
+      transparent: true,
+      opacity: 0.85,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+    }));
+    halo.scale.set(spec.haloSize, spec.haloSize, 1);
+    scene.add(halo);
+
+    return { spec, mesh, halo };
+  });
 
   // Star layers are anchored to the rocket each frame (see updateStarAnchors)
   // so the player never flies "out of" the starfield. Stars themselves stay
@@ -55,10 +79,10 @@ export function createScene() {
   const streaks = makeStreakLayer(400, 4000);
   scene.add(streaks);
 
-  const nebulae = makeNebulae(4);
+  const nebulae = makeNebulae(3);
   for (const n of nebulae) scene.add(n.sprite);
 
-  return { scene, sunMesh, halo, streaks, nebulae, starLayers };
+  return { scene, suns, streaks, nebulae, starLayers };
 }
 
 /**
@@ -124,12 +148,14 @@ export function updateStreaks(streaks, forward, speed, maxSpeed) {
 }
 
 /**
- * Update sun mesh + halo to track the rocket so the sun stays at a fixed
+ * Pin every sun's mesh and halo to the rocket so each one stays at a fixed
  * apparent direction regardless of where the rocket has flown.
  */
-export function updateSun(sunMesh, halo, rocketPosition) {
-  sunMesh.position.copy(rocketPosition).addScaledVector(SUN_DIRECTION, SUN_DISTANCE);
-  halo.position.copy(sunMesh.position);
+export function updateSuns(suns, rocketPosition) {
+  for (const s of suns) {
+    s.mesh.position.copy(rocketPosition).addScaledVector(s.spec.direction, s.spec.distance);
+    s.halo.position.copy(s.mesh.position);
+  }
 }
 
 /**
@@ -148,12 +174,12 @@ function makeNebulae(count) {
     const color = NEBULA_COLORS[i % NEBULA_COLORS.length];
     const scale = 1800 + Math.random() * 1400;
     const sprite = new THREE.Sprite(new THREE.SpriteMaterial({
-      map: makeRadialGradient(color),
+      // Softer gradient than the sun halo — center alpha caps at 0.25, not 1.
+      // Combined with the low opacity below this gives a barely-perceptible tint.
+      map: makeNebulaGradient(color),
       color: 0xffffff,
       transparent: true,
-      // Very low opacity — nebulae should read as a hint of color in deep
-      // space, not a dominant background element.
-      opacity: 0.015 + Math.random() * 0.02,
+      opacity: 0.04 + Math.random() * 0.03,
       depthWrite: false,
       blending: THREE.AdditiveBlending,
     }));
@@ -188,6 +214,26 @@ function makeSkyGradient() {
 }
 
 function makeRadialGradient(hexColor) {
+  return makeGradientTexture(hexColor, [
+    [0,    1.0],
+    [0.2,  0.6],
+    [0.5,  0.15],
+    [1,    0],
+  ]);
+}
+
+function makeNebulaGradient(hexColor) {
+  // Cap center alpha at 0.25 so even at full opacity the nebula never glows
+  // bright. The smooth falloff makes it read as a faint cloud, not a sun.
+  return makeGradientTexture(hexColor, [
+    [0,    0.25],
+    [0.35, 0.10],
+    [0.7,  0.025],
+    [1,    0],
+  ]);
+}
+
+function makeGradientTexture(hexColor, stops) {
   const size = 256;
   const canvas = document.createElement('canvas');
   canvas.width = canvas.height = size;
@@ -196,10 +242,9 @@ function makeRadialGradient(hexColor) {
   const grad = ctx.createRadialGradient(r, r, 0, r, r, r);
   const c = new THREE.Color(hexColor);
   const rgb = `${Math.round(c.r * 255)}, ${Math.round(c.g * 255)}, ${Math.round(c.b * 255)}`;
-  grad.addColorStop(0,    `rgba(${rgb}, 1)`);
-  grad.addColorStop(0.2,  `rgba(${rgb}, 0.6)`);
-  grad.addColorStop(0.5,  `rgba(${rgb}, 0.15)`);
-  grad.addColorStop(1,    `rgba(${rgb}, 0)`);
+  for (const [stop, alpha] of stops) {
+    grad.addColorStop(stop, `rgba(${rgb}, ${alpha})`);
+  }
   ctx.fillStyle = grad;
   ctx.fillRect(0, 0, size, size);
   return new THREE.CanvasTexture(canvas);
