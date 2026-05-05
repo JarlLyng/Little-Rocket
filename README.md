@@ -232,6 +232,10 @@ Hosted on GitHub Pages with the custom domain `littlerocket.iamjarl.com`. There 
 
 GitHub Pages re-deploys on every push to `main`. Cache-Control is set to 10 minutes, so test changes with a hard refresh (Cmd/Ctrl+Shift+R) if they appear missing.
 
+### Analytics
+
+Pageview counts go to a self-hosted [Umami](https://umami.is) instance at `umami-iamjarl.vercel.app`. No cookies, no IP storage, no cross-site tracking — just aggregate pageview totals. The script tag lives in `index.html`. Remove it (or fork without it) if you'd rather not be counted.
+
 ---
 
 ## Contributing
