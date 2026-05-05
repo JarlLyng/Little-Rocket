@@ -74,6 +74,20 @@ h1 {
   line-height: var(--ij-line-height-normal, 24px);
 }
 
+/* Intro narration on the start screen — sets tone before the player flies.
+   Same italic flavor as the in-game story but tighter. */
+.intro-text {
+  margin: 0;
+  max-width: 480px;
+  padding: 0 var(--ij-spacing-md, 12px);
+  font-style: italic;
+  font-size: var(--ij-font-size-base, 16px);
+  line-height: var(--ij-line-height-relaxed, 28px);
+  color: var(--ij-color-text-secondary, rgba(255, 255, 255, 0.78));
+  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.7);
+  letter-spacing: 0.2px;
+}
+
 .btn-primary {
   appearance: none;
   border: 0;
