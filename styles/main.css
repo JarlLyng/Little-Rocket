@@ -117,22 +117,35 @@ h1 {
   font-weight: var(--ij-font-weight-semibold, 600);
   text-align: right;
 }
+@media (max-width: 480px) {
+  #ui {
+    column-gap: var(--ij-spacing-sm, 8px);
+    padding: 6px var(--ij-spacing-sm, 8px);
+    font-size: var(--ij-font-size-xs, 12px);
+  }
+}
 
-/* Controls hint toast — shown briefly after start, summonable via the ? button */
+/* Controls hint toast — shown briefly after start, summonable via the ? button.
+   Sits below the top row (HUD + buttons) so it never overlaps them. */
 #hint-toast {
   position: fixed;
-  top: var(--ij-spacing-md, 12px);
+  top: 56px;
   left: 50%;
   transform: translateX(-50%);
+  max-width: calc(100vw - 32px);
   padding: var(--ij-spacing-sm, 8px) var(--ij-spacing-lg, 16px);
   background: rgba(0, 0, 0, 0.55);
   border: 1px solid var(--ij-color-border-subtle, rgba(255, 255, 255, 0.12));
   border-radius: var(--ij-radius-sm, 8px);
   font-size: var(--ij-font-size-sm, 14px);
+  text-align: center;
   color: var(--ij-color-text-secondary, rgba(255, 255, 255, 0.75));
   pointer-events: none;
   opacity: 0;
   transition: opacity var(--ij-duration-slow, 400ms) var(--ij-easing-standard);
+}
+@media (max-width: 480px) {
+  #hint-toast { font-size: var(--ij-font-size-xs, 12px); padding: 6px 12px; }
 }
 #hint-toast[hidden] { display: none; }
 #hint-toast.visible { opacity: 1; }
@@ -202,13 +215,14 @@ h1 {
   right: var(--ij-spacing-md, 12px);
   top: 50%;
   transform: translateY(-50%);
-  width: 6px;
+  width: 10px;
   height: 38vh;
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid var(--ij-color-border-subtle, rgba(255, 255, 255, 0.12));
-  border-radius: 3px;
+  background: rgba(0, 0, 0, 0.5);
+  border: 1px solid var(--ij-color-border-default, rgba(255, 255, 255, 0.18));
+  border-radius: 5px;
   pointer-events: none;
   display: none;
+  overflow: hidden;
 }
 #throttle-fill {
   position: absolute;
@@ -216,7 +230,7 @@ h1 {
   left: 0;
   width: 100%;
   background: var(--ij-color-primary, #D0FF00);
-  border-radius: 3px;
+  box-shadow: 0 0 8px var(--ij-color-primary, #D0FF00);
   height: 0%;
   transition: height 100ms ease-out;
 }

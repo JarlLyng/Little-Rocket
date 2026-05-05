@@ -60,10 +60,17 @@ function start() {
 /**
  * Show the controls reminder briefly, then fade. Click '?' any time to bring
  * it back. Calling showHint() while it's already up resets the timer.
+ *
+ * Hint copy adapts to touch vs keyboard so phone players don't see "Arrow keys".
  */
 function setupHint() {
   const toast = document.getElementById('hint-toast');
   const button = document.getElementById('hint-button');
+  const isTouch = window.matchMedia('(hover: none) and (pointer: coarse)').matches
+                 || ('ontouchstart' in window);
+  toast.textContent = isTouch
+    ? 'Drag the left half to steer · drag the right half to throttle'
+    : 'Arrow keys = steer · W/S = throttle · Q/E = roll · Mouse = look around';
   let hideTimer = null;
   let removeTimer = null;
 
@@ -123,7 +130,8 @@ function run() {
   const distanceEl = document.getElementById('distance');
   const nearMissEl = document.getElementById('near-miss');
   const throttleFill = document.getElementById('throttle-fill');
-  const isTouch = window.matchMedia('(hover: none) and (pointer: coarse)').matches;
+  const isTouch = window.matchMedia('(hover: none) and (pointer: coarse)').matches
+                 || ('ontouchstart' in window);
 
   const introOverlay = document.getElementById('intro-overlay');
 
