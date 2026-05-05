@@ -5,8 +5,8 @@
 html, body {
   margin: 0;
   height: 100%;
-  background: #000;
-  color: var(--ij-color-text-inverse, #fff);
+  background: var(--ij-color-bg-app, #000);
+  color: var(--ij-color-text-primary, #fff);
   font-family: var(--ij-font-ui, system-ui);
   font-size: var(--ij-font-size-base, 16px);
   line-height: var(--ij-line-height-normal, 24px);

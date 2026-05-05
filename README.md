@@ -47,7 +47,18 @@ favicon.png
 
 The UI chrome (start screen, button, HUD) uses tokens from [iamjarl-design](https://github.com/JarlLyng/iamjarl-design). The 3D scene has its own visual language and does not reference design tokens.
 
-To update tokens, copy `dist/css/tokens.css` from the design system repo into `vendor/iamjarl-tokens.css`.
+The page is anchored to dark mode (`<html class="dark">`) so token values stay consistent regardless of the visitor's OS preference — the space scene is always dark, so light-mode tokens would clash.
+
+### Updating tokens
+
+The design system is vendored, not linked. To pull a new release:
+
+```bash
+cp ../iamjarl-design/dist/css/tokens.css vendor/iamjarl-tokens.css
+./scripts/check-tokens.sh
+```
+
+The check script verifies that every `--ij-*` token referenced in our CSS still exists in the vendored file. If upstream renamed or removed a token we depend on, the script fails with a list of missing tokens — preventing silent fallback to hardcoded values.
 
 ## Deployment
 
