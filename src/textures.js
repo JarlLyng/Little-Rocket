@@ -1,3 +1,18 @@
+/**
+ * Procedural noise textures shared by all planets and moons.
+ *
+ * Generated once on first request via four-octave value noise (6/18/48/128
+ * grids, smoothstep-interpolated, contrast-shaped with pow(1.4)). The same
+ * underlying noise is written to two CanvasTextures:
+ *
+ *   getPlanetBumpTexture()  — full 0–255 range. Used as bumpMap, roughnessMap,
+ *                             and aoMap. Linear color space.
+ *   getPlanetColorMap()     — compressed 0.50–1.10 range so it modulates the
+ *                             diffuse color without black-clipping. sRGB.
+ *
+ * Both textures are RepeatWrapping with anisotropy 4. They are intentionally
+ * never disposed — they live for the lifetime of the page.
+ */
 import * as THREE from 'three';
 
 const SIZE = 512;

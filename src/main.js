@@ -1,3 +1,23 @@
+/**
+ * Game loop orchestrator.
+ *
+ * Owns the frame loop, the rocket transform, the camera, and input wiring.
+ * Each visible system (planets, asteroids, exhaust, audio, music, story,
+ * sun, streaks, nebulae) is built in its own module and updated from here.
+ *
+ * Lifecycle:
+ *   page load → user clicks Start → start() → run() → frame loop forever.
+ *
+ * The frame loop has two phases:
+ *   1. Intro  — cinematic dolly-in for INTRO_DURATION seconds. Input is
+ *               ignored, speed/FOV/camera are scripted, the black overlay
+ *               fades. Engine glow + audio scale up from silence.
+ *   2. Live   — keyboard/mouse drive the rocket. FOV, camera shake, exhaust,
+ *               star streaks all key off speed.
+ *
+ * Hot-loop convention: scratch Vector3s declared once outside the loop are
+ * reused per frame to avoid GC churn (see camTarget, forward, etc).
+ */
 import * as THREE from 'three';
 import { createScene, createCamera, createRenderer, updateStreaks, updateSuns, updateNebulae, updateStarAnchors } from './scene.js';
 import { createRocket, updateGlow } from './rocket.js';

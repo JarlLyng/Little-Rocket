@@ -1,3 +1,14 @@
+/**
+ * Asteroid fields — a different rhythm from the round planets.
+ *
+ * Each field is a Group of 8–18 small icosahedrons positioned uniformly
+ * inside a sphere. Asteroid shapes come from a pool of GEOMETRY_POOL_SIZE
+ * pre-built displaced icosahedrons so we don't pay GPU upload cost on every
+ * recycle — instances vary by scale, rotation, and color only.
+ *
+ * Same spawn-ahead / recycle-behind cadence as planets, but no near-miss
+ * detection (asteroids are too small to make that meaningful).
+ */
 import * as THREE from 'three';
 
 const FIELD_COUNT = 4;

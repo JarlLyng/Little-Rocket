@@ -1,3 +1,16 @@
+/**
+ * Procedural planet field.
+ *
+ * Maintains TARGET_COUNT planet groups at a time. Each planet group has:
+ *   - a textured body (color, bump, roughness, ao all driven by shared noise)
+ *   - optional ring (~25% chance)
+ *   - 0–2 moons that orbit on tilted axes
+ *
+ * Planets spawn ahead of the rocket and recycle behind; recycled groups are
+ * disposed (geometry + material) but the shared bump/colorMap textures live
+ * forever in textures.js. update() also fires onNearMiss for HUD feedback
+ * when the rocket enters within 2.2× a planet's radius.
+ */
 import * as THREE from 'three';
 import { getPlanetBumpTexture, getPlanetColorMap } from './textures.js';
 

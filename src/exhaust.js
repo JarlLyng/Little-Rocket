@@ -1,3 +1,15 @@
+/**
+ * Engine particle exhaust trail.
+ *
+ * Fixed pool of additive Points written to in a ring buffer. Spawning is
+ * gated to throttle above SPAWN_THRESHOLD (50% of MAX_SPEED) so calm flying
+ * has no trail at all. Particles fade by ramping their RGB toward zero —
+ * with additive blending that's equivalent to alpha → 0, no alpha channel
+ * needed in the BufferAttribute.
+ *
+ * Particles live in world space (not parented to the rocket), so they stay
+ * behind as the rocket moves on.
+ */
 import * as THREE from 'three';
 
 const POOL_SIZE = 300;

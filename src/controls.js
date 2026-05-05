@@ -1,3 +1,14 @@
+/**
+ * Keyboard + mouse input bridge.
+ *
+ * Returns { keys, mouse } where keys is a sparse object keyed by KeyboardEvent.code
+ * (e.g. keys['KeyW'], keys['ArrowUp']) and mouse is { x, y } in [-1, 1] viewport
+ * coordinates. Read these from the frame loop in main.js — no event handlers needed
+ * outside this module.
+ *
+ * Resets all keys on window blur so the rocket doesn't keep accelerating after
+ * Cmd+Tab away from the page.
+ */
 export function createControls() {
   const keys = Object.create(null);
   const mouse = { x: 0, y: 0 };

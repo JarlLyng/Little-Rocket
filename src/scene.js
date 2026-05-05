@@ -1,3 +1,18 @@
+/**
+ * Scene factory and "follower" updates.
+ *
+ * createScene() builds: a Scene with sky-gradient background, ambient + two
+ * directional lights (binary star system), three star Points layers, a streak
+ * LineSegments layer, four nebula sprites, plus visible sun mesh + halo per
+ * star. Returns handles to the things main.js needs to update each frame.
+ *
+ * Anything that should feel "infinitely far" (suns, nebulae, star layers,
+ * streak layer) is re-pinned to the rocket's world position every frame so
+ * the player can fly forever without flying out of the surrounding sky.
+ *
+ * The 3D scene is intentionally outside the IAMJARL design token system —
+ * see styles/main.css for the UI chrome that does use tokens.
+ */
 import * as THREE from 'three';
 
 // Forward-right-up of the default rocket orientation (rocket starts pointing -z).
