@@ -5,6 +5,43 @@ const ASTEROIDS_PER_FIELD = [8, 18];   // [min, max] inclusive
 const FIELD_RADIUS = [50, 120];
 const ASTEROID_RADIUS = [0.5, 2.2];
 const COLORS = [0x8a8378, 0x6b6358, 0x9a9088, 0x7a6e60, 0x877a64];
+const GEOMETRY_POOL_SIZE = 8;
+
+// Scratch vector reused inside the per-frame loop.
+const _scratch = new THREE.Vector3();
+
+/**
+ * Pool of distinct asteroid shapes built lazily on first use. Each asteroid
+ * picks one and varies via scale + rotation, so a player perceives unique
+ * shapes without us paying the cost of one geometry per mesh. Pool stays
+ * alive for the lifetime of the program — geometries are NOT disposed when
+ * a field recycles.
+ */
+let geometryPool = null;
+
+function buildAsteroidGeometry() {
+  // Unit radius — instances scale to their actual size.
+  const geo = new THREE.IcosahedronGeometry(1, 1);
+  const positions = geo.attributes.position;
+  for (let i = 0; i < positions.count; i++) {
+    const x = positions.getX(i);
+    const y = positions.getY(i);
+    const z = positions.getZ(i);
+    const len = Math.sqrt(x * x + y * y + z * z) || 1;
+    const wobble = 0.65 + Math.random() * 0.55;
+    positions.setXYZ(i, (x / len) * wobble, (y / len) * wobble, (z / len) * wobble);
+  }
+  geo.computeVertexNormals();
+  return geo;
+}
+
+function getPooledGeometry() {
+  if (!geometryPool) {
+    geometryPool = [];
+    for (let i = 0; i < GEOMETRY_POOL_SIZE; i++) geometryPool.push(buildAsteroidGeometry());
+  }
+  return geometryPool[Math.floor(Math.random() * geometryPool.length)];
+}
 
 /**
  * Asteroid fields: clusters of small low-poly rocky meshes that spawn in
@@ -19,29 +56,9 @@ export function createAsteroidField(scene, anchor) {
   const fields = [];
 
   function makeAsteroid() {
-    const baseRadius = ASTEROID_RADIUS[0] + Math.random() * (ASTEROID_RADIUS[1] - ASTEROID_RADIUS[0]);
-    const geo = new THREE.IcosahedronGeometry(baseRadius, 1);
-
-    // Displace each vertex along its outward normal so the silhouette is
-    // irregular instead of a clean polyhedron.
-    const positions = geo.attributes.position;
-    for (let i = 0; i < positions.count; i++) {
-      const x = positions.getX(i);
-      const y = positions.getY(i);
-      const z = positions.getZ(i);
-      const len = Math.sqrt(x * x + y * y + z * z) || 1;
-      const wobble = 0.65 + Math.random() * 0.55;
-      positions.setXYZ(
-        i,
-        (x / len) * baseRadius * wobble,
-        (y / len) * baseRadius * wobble,
-        (z / len) * baseRadius * wobble
-      );
-    }
-    geo.computeVertexNormals();
-
+    const radius = ASTEROID_RADIUS[0] + Math.random() * (ASTEROID_RADIUS[1] - ASTEROID_RADIUS[0]);
     const mesh = new THREE.Mesh(
-      geo,
+      getPooledGeometry(),
       new THREE.MeshStandardMaterial({
         color: COLORS[Math.floor(Math.random() * COLORS.length)],
         roughness: 1.0,
@@ -49,6 +66,7 @@ export function createAsteroidField(scene, anchor) {
         flatShading: true,
       })
     );
+    mesh.scale.setScalar(radius);
     mesh.userData.spinX = (Math.random() - 0.5) * 0.01;
     mesh.userData.spinY = (Math.random() - 0.5) * 0.01;
     mesh.userData.spinZ = (Math.random() - 0.5) * 0.005;
@@ -109,12 +127,12 @@ export function createAsteroidField(scene, anchor) {
         a.rotation.z += a.userData.spinZ * dt;
       }
 
-      const toField = f.position.clone().sub(anchor.position);
+      const toField = _scratch.subVectors(f.position, anchor.position);
       if (toField.dot(forward) < -300 || toField.length() > 2500) {
         scene.remove(f);
         f.traverse((obj) => {
           if (obj.isMesh) {
-            obj.geometry.dispose();
+            // Geometry is shared from the pool — only dispose the per-asteroid material.
             obj.material.dispose();
           }
         });

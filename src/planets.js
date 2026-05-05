@@ -1,6 +1,9 @@
 import * as THREE from 'three';
 import { getPlanetBumpTexture } from './textures.js';
 
+// Scratch vector reused inside the per-frame loop to avoid Vector3 churn.
+const _scratch = new THREE.Vector3();
+
 const COLORS = [0xff6644, 0x44aaff, 0xffaa44, 0x88ff88, 0xaa66ff, 0xffdd66, 0xff88aa];
 const TARGET_COUNT = 40;
 const RING_CHANCE = 0.25;
@@ -125,7 +128,7 @@ export function createPlanetField(scene, anchor) {
         );
       }
 
-      const toPlanet = p.position.clone().sub(anchor.position);
+      const toPlanet = _scratch.subVectors(p.position, anchor.position);
       const planetDist = toPlanet.length();
       const nearThreshold = p.userData.radius * 2.2;
       const isNear = planetDist < nearThreshold;

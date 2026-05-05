@@ -38,20 +38,36 @@ export function createScene() {
   halo.scale.set(420, 420, 1);
   scene.add(halo);
 
-  scene.add(makeStarLayer(8000, 0.8, 4000, 0xffffff));
-  scene.add(makeStarLayer(2000, 1.5, 4000, 0xddeeff));
-  scene.add(makeStarLayer(300,  2.5, 4000, 0xffeecc));
+  // Star layers are anchored to the rocket each frame (see updateStarAnchors)
+  // so the player never flies "out of" the starfield. Stars themselves stay
+  // fixed in rocket-relative space, which reads as "stars at infinity" — the
+  // sense of motion comes from planets, asteroids, and the streak layer.
+  const starLayers = [
+    makeStarLayer(8000, 0.8, 4000, 0xffffff),
+    makeStarLayer(2000, 1.5, 4000, 0xddeeff),
+    makeStarLayer(300,  2.5, 4000, 0xffeecc),
+  ];
+  for (const layer of starLayers) scene.add(layer);
 
   // Streak layer: zero-length line segments that grow backwards along the
-  // rocket's forward vector at high speed. Positions live at world origin —
-  // we update them from main.js per frame.
+  // rocket's forward vector at high speed. Also anchored to the rocket so the
+  // streaks always surround it.
   const streaks = makeStreakLayer(400, 4000);
   scene.add(streaks);
 
   const nebulae = makeNebulae(4);
   for (const n of nebulae) scene.add(n.sprite);
 
-  return { scene, sunMesh, halo, streaks, nebulae };
+  return { scene, sunMesh, halo, streaks, nebulae, starLayers };
+}
+
+/**
+ * Pin star (and streak) layers to the rocket's world position so they feel
+ * like a static dome at infinity.
+ */
+export function updateStarAnchors(starLayers, streaks, rocketPosition) {
+  for (const layer of starLayers) layer.position.copy(rocketPosition);
+  streaks.position.copy(rocketPosition);
 }
 
 function makeStarLayer(count, size, spread, color) {

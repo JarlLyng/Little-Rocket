@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { createScene, createCamera, createRenderer, updateStreaks, updateSun, updateNebulae } from './scene.js';
+import { createScene, createCamera, createRenderer, updateStreaks, updateSun, updateNebulae, updateStarAnchors } from './scene.js';
 import { createRocket, updateGlow } from './rocket.js';
 import { createPlanetField } from './planets.js';
 import { createAsteroidField } from './asteroids.js';
@@ -60,7 +60,7 @@ function setupHint() {
 }
 
 function run() {
-  const { scene, sunMesh, halo, streaks, nebulae } = createScene();
+  const { scene, sunMesh, halo, streaks, nebulae, starLayers } = createScene();
   const camera = createCamera();
   const renderer = createRenderer();
   document.body.appendChild(renderer.domElement);
@@ -101,6 +101,7 @@ function run() {
   const mouseOffset = new THREE.Vector3();
   const enginePos = new THREE.Vector3();
   const shakeOffset = new THREE.Vector3();
+  const camTarget = new THREE.Vector3();
 
   window.addEventListener('resize', () => {
     camera.aspect = window.innerWidth / window.innerHeight;
@@ -149,7 +150,8 @@ function run() {
     camera.updateProjectionMatrix();
 
     camOffset.set(0, 2.5, 8).applyQuaternion(rocketGroup.quaternion);
-    camera.position.lerp(rocketGroup.position.clone().add(camOffset), 0.15);
+    camTarget.copy(rocketGroup.position).add(camOffset);
+    camera.position.lerp(camTarget, 0.15);
 
     // Camera shake at high throttle. Sells velocity. Skipped for reduced-motion.
     if (!reducedMotion) {
@@ -178,6 +180,7 @@ function run() {
     updateStreaks(streaks, forward, reducedMotion ? 0 : speed, MAX_SPEED);
     updateSun(sunMesh, halo, rocketGroup.position);
     updateNebulae(nebulae, rocketGroup.position);
+    updateStarAnchors(starLayers, streaks, rocketGroup.position);
 
     // Engine exhaust: emit from glow position in world space, then update all live particles.
     rocket.userData.glow.getWorldPosition(enginePos);
