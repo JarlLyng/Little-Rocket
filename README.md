@@ -4,7 +4,9 @@
 
 A tiny browser game where you fly a rocket through an endless field of procedurally placed planets. Built with [Three.js](https://threejs.org/) — no build step, no dependencies to install.
 
-**Play it:** [littlerocket.iamjarl.com](https://littlerocket.iamjarl.com/)
+![Little Rocket](og-image.png)
+
+**Play it:** [littlerocket.iamjarl.com](https://littlerocket.iamjarl.com/) — desktop or laptop, keyboard required.
 
 ## Controls
 

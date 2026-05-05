@@ -33,6 +33,15 @@ canvas { display: block; }
 
 .overlay[hidden] { display: none; }
 
+/* Show desktop overlay only on devices with hover + fine pointer (mouse/trackpad).
+   Touch-only devices (phones, tablets) get the mobile warning instead. */
+.overlay--mobile { display: none; }
+
+@media (hover: none) and (pointer: coarse) {
+  .overlay--desktop { display: none; }
+  .overlay--mobile  { display: flex; }
+}
+
 h1 {
   margin: 0;
   font-size: var(--ij-font-size-xxl, 36px);
