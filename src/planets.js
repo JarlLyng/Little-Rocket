@@ -13,15 +13,19 @@ export function createPlanetField(scene, anchor) {
 
   function makeMoon(planetRadius) {
     const moonRadius = planetRadius * (0.18 + Math.random() * 0.22);
+    const moonGeo = new THREE.SphereGeometry(moonRadius, 16, 16);
+    moonGeo.setAttribute('uv2', moonGeo.attributes.uv);
     const mesh = new THREE.Mesh(
-      new THREE.SphereGeometry(moonRadius, 16, 16),
+      moonGeo,
       new THREE.MeshStandardMaterial({
         color: 0xbbbbbb,
         roughness: 0.95,
         metalness: 0.05,
         bumpMap,
-        bumpScale: 0.6,
+        bumpScale: 1.0,
         roughnessMap: bumpMap,
+        aoMap: bumpMap,
+        aoMapIntensity: 1.0,
       })
     );
     return {
@@ -39,17 +43,22 @@ export function createPlanetField(scene, anchor) {
 
     const group = new THREE.Group();
 
+    const bodyGeo = new THREE.SphereGeometry(r, 32, 32);
+    // aoMap requires uv2; for SphereGeometry we just reuse uv.
+    bodyGeo.setAttribute('uv2', bodyGeo.attributes.uv);
     const body = new THREE.Mesh(
-      new THREE.SphereGeometry(r, 32, 32),
+      bodyGeo,
       new THREE.MeshStandardMaterial({
         color,
         roughness: 0.85,
         metalness: 0.1,
         emissive: color,
-        emissiveIntensity: 0.08,
+        emissiveIntensity: 0.06,
         bumpMap,
-        bumpScale: 0.5 + Math.random() * 0.4,
+        bumpScale: 1.0 + Math.random() * 0.6,
         roughnessMap: bumpMap,
+        aoMap: bumpMap,
+        aoMapIntensity: 1.0,
       })
     );
     body.userData.spinSpeed = (Math.random() - 0.5) * 0.005;
