@@ -16,6 +16,17 @@ html, body {
 
 canvas { display: block; }
 
+/* Intro overlay: black curtain that fades out during the cinematic intro */
+#intro-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  background: #000;
+  pointer-events: none;
+  opacity: 1;
+}
+#intro-overlay[hidden] { display: none; }
+
 /* Start overlay */
 .overlay {
   position: fixed;

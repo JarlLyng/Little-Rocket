@@ -20,15 +20,16 @@ startBtn.addEventListener('click', start, { once: true });
 const HINT_VISIBLE_MS = 6000;
 const HINT_FADE_MS = 400; // matches --ij-duration-slow in CSS
 const NEAR_MISS_VISIBLE_MS = 700;
+const INTRO_DURATION = 1.6;     // seconds of cinematic intro before player takes control
+const INTRO_FOV_START = 50;     // narrow FOV → opens up to FOV_IDLE
+const INTRO_CAM_DISTANCE = 60;  // how far back the camera starts behind the rocket
 
 function start() {
   document.getElementById('start').hidden = true;
-  document.getElementById('ui').hidden = false;
-  document.getElementById('hint-button').hidden = false;
+  document.getElementById('intro-overlay').hidden = false;
   // Audio context must be created from a user gesture, so we init it here
   // rather than at module load.
   initAudio();
-  setupHint();
   run();
 }
 
@@ -80,8 +81,12 @@ function run() {
   const distanceEl = document.getElementById('distance');
   const nearMissEl = document.getElementById('near-miss');
 
-  let speed = 1.0;
+  const introOverlay = document.getElementById('intro-overlay');
+
+  let speed = 0.3;             // intro starts the rocket gliding forward
   let distanceAU = 0;
+  let introT = 0;
+  let introDone = false;
   let nearMissTimer = null;
   function flashNearMiss() {
     nearMissEl.hidden = false;
@@ -120,41 +125,77 @@ function run() {
     if (document.hidden) return;
 
     const dt = Math.min(clock.getDelta(), 1 / 30) * 60;
+    const realDt = dt / 60;
 
-    if (keys['ArrowUp'])                    rocketGroup.rotateX(-ROT_SPEED * dt);
-    if (keys['ArrowDown'])                  rocketGroup.rotateX( ROT_SPEED * dt);
-    if (keys['ArrowLeft']  || keys['KeyA']) rocketGroup.rotateY( ROT_SPEED * dt);
-    if (keys['ArrowRight'] || keys['KeyD']) rocketGroup.rotateY(-ROT_SPEED * dt);
-    if (keys['KeyQ'])                       rocketGroup.rotateZ( ROT_SPEED * dt);
-    if (keys['KeyE'])                       rocketGroup.rotateZ(-ROT_SPEED * dt);
-    if (keys['KeyW']) speed = Math.min(speed + ACCEL * dt, MAX_SPEED);
-    if (keys['KeyS']) speed = Math.max(speed - ACCEL * dt, 0);
+    // --- Intro phase: cinematic camera dolly + FOV widen + audio swell ---
+    let introEase = 1;
+    if (!introDone) {
+      introT = Math.min(introT + realDt, INTRO_DURATION);
+      const t = introT / INTRO_DURATION;
+      introEase = 1 - Math.pow(1 - t, 3); // ease-out cubic
+      introOverlay.style.opacity = String(1 - introEase);
+
+      // Engines spool up: speed eases from 0.3 to 0.9 by intro end
+      speed = 0.3 + 0.6 * introEase;
+
+      if (introT >= INTRO_DURATION) {
+        introDone = true;
+        introOverlay.hidden = true;
+        document.getElementById('ui').hidden = false;
+        document.getElementById('hint-button').hidden = false;
+        setupHint();
+      }
+    } else {
+      // Normal input — only after the intro hands over control
+      if (keys['ArrowUp'])                    rocketGroup.rotateX(-ROT_SPEED * dt);
+      if (keys['ArrowDown'])                  rocketGroup.rotateX( ROT_SPEED * dt);
+      if (keys['ArrowLeft']  || keys['KeyA']) rocketGroup.rotateY( ROT_SPEED * dt);
+      if (keys['ArrowRight'] || keys['KeyD']) rocketGroup.rotateY(-ROT_SPEED * dt);
+      if (keys['KeyQ'])                       rocketGroup.rotateZ( ROT_SPEED * dt);
+      if (keys['KeyE'])                       rocketGroup.rotateZ(-ROT_SPEED * dt);
+      if (keys['KeyW']) speed = Math.min(speed + ACCEL * dt, MAX_SPEED);
+      if (keys['KeyS']) speed = Math.max(speed - ACCEL * dt, 0);
+    }
+
     speedEl.textContent = speed.toFixed(1);
-
-    distanceAU += speed * dt / 60;
+    distanceAU += speed * realDt;
     distanceEl.textContent = `${Math.floor(distanceAU)} AU`;
 
     forward.set(0, 0, -1).applyQuaternion(rocketGroup.quaternion);
     rocketGroup.position.addScaledVector(forward, speed * dt);
 
-    updateGlow(rocket, speed);
-    setEngineLevel(speed, MAX_SPEED);
+    // Engines glow + audio scaled by intro progress so they ignite, not burst on
+    const presentationSpeed = speed * introEase;
+    updateGlow(rocket, presentationSpeed);
+    setEngineLevel(presentationSpeed, MAX_SPEED);
 
-    // Speed-based FOV punch. Eased so it feels like acceleration, not a snap.
-    // Reduced-motion holds FOV at idle to avoid the wide-angle "rush".
+    // FOV: during intro, lerp from narrow → idle. After, speed-based punch.
     const reducedMotion = prefersReducedMotion();
-    const targetFov = reducedMotion
-      ? FOV_IDLE
-      : FOV_IDLE + (speed / MAX_SPEED) * (FOV_MAX - FOV_IDLE);
-    camera.fov += (targetFov - camera.fov) * 0.08;
+    let targetFov;
+    if (!introDone) {
+      targetFov = INTRO_FOV_START + (FOV_IDLE - INTRO_FOV_START) * introEase;
+      camera.fov = targetFov;
+    } else {
+      targetFov = reducedMotion
+        ? FOV_IDLE
+        : FOV_IDLE + (speed / MAX_SPEED) * (FOV_MAX - FOV_IDLE);
+      camera.fov += (targetFov - camera.fov) * 0.08;
+    }
     camera.updateProjectionMatrix();
 
-    camOffset.set(0, 2.5, 8).applyQuaternion(rocketGroup.quaternion);
-    camTarget.copy(rocketGroup.position).add(camOffset);
-    camera.position.lerp(camTarget, 0.15);
+    // Camera offset: starts 60 units back, eases to normal 8 units back.
+    const camDistance = 8 + (INTRO_CAM_DISTANCE - 8) * (1 - introEase);
+    camOffset.set(0, 2.5, camDistance).applyQuaternion(rocketGroup.quaternion);
+    if (introDone) {
+      camTarget.copy(rocketGroup.position).add(camOffset);
+      camera.position.lerp(camTarget, 0.15);
+    } else {
+      // Snap during intro so the dolly path is exact, not lerp-smoothed
+      camera.position.copy(rocketGroup.position).add(camOffset);
+    }
 
-    // Camera shake at high throttle. Sells velocity. Skipped for reduced-motion.
-    if (!reducedMotion) {
+    // Camera shake at high throttle. Sells velocity. Skipped for reduced-motion + intro.
+    if (introDone && !reducedMotion) {
       const shakeT = Math.max(0, (speed / MAX_SPEED - 0.65) / 0.35);
       if (shakeT > 0) {
         const amp = shakeT * shakeT * 0.18;
@@ -167,7 +208,10 @@ function run() {
       }
     }
 
-    mouseOffset.set(mouse.x * 8, -mouse.y * 5, 0).applyQuaternion(rocketGroup.quaternion);
+    // Mouse-look is disabled during intro so the cinematic stays composed.
+    const mouseGate = introDone ? 1 : 0;
+    mouseOffset.set(mouse.x * 8 * mouseGate, -mouse.y * 5 * mouseGate, 0)
+      .applyQuaternion(rocketGroup.quaternion);
     lookTarget.copy(rocketGroup.position)
       .addScaledVector(forward, 20)
       .add(mouseOffset);
@@ -176,15 +220,17 @@ function run() {
 
     planets.update(forward, dt, flashNearMiss);
     asteroids.update(forward, dt);
-    // Star streaks read as motion; when reduced-motion is set, force them invisible.
-    updateStreaks(streaks, forward, reducedMotion ? 0 : speed, MAX_SPEED);
+    // Star streaks read as motion; suppressed under reduced-motion AND during intro.
+    const streakSpeed = (introDone && !reducedMotion) ? speed : 0;
+    updateStreaks(streaks, forward, streakSpeed, MAX_SPEED);
     updateSuns(suns, rocketGroup.position);
     updateNebulae(nebulae, rocketGroup.position);
     updateStarAnchors(starLayers, streaks, rocketGroup.position);
 
     // Engine exhaust: emit from glow position in world space, then update all live particles.
+    // No emission during intro — engines aren't fully lit yet.
     rocket.userData.glow.getWorldPosition(enginePos);
-    exhaust.spawn(enginePos, forward, speed, MAX_SPEED, dt);
+    if (introDone) exhaust.spawn(enginePos, forward, speed, MAX_SPEED, dt);
     exhaust.update(dt);
 
     renderer.render(scene, camera);
