@@ -127,7 +127,7 @@ function run() {
 
     // Engine exhaust: emit from glow position in world space, then update all live particles.
     rocket.userData.glow.getWorldPosition(enginePos);
-    exhaust.spawn(enginePos, forward, speed, dt);
+    exhaust.spawn(enginePos, forward, speed, MAX_SPEED, dt);
     exhaust.update(dt);
 
     renderer.render(scene, camera);

@@ -1,8 +1,9 @@
 import * as THREE from 'three';
 
-const POOL_SIZE = 500;
-const LIFETIME_S = 1.2;        // seconds for a particle to fade to black
-const SPAWN_RATE = 8;           // particles per second per unit of speed
+const POOL_SIZE = 300;
+const LIFETIME_S = 0.9;        // seconds for a particle to fade to black
+const SPAWN_RATE = 3;          // particles per second per unit of speed (above threshold)
+const SPAWN_THRESHOLD = 0.5;   // fraction of MAX_SPEED before any particles emit
 
 /**
  * Engine particle trail. A fixed pool of points written to in a ring buffer,
@@ -23,7 +24,7 @@ export function createExhaust() {
   geo.setAttribute('color',    new THREE.BufferAttribute(colors, 3));
 
   const mat = new THREE.PointsMaterial({
-    size: 0.4,
+    size: 0.15,
     vertexColors: true,
     transparent: true,
     blending: THREE.AdditiveBlending,
@@ -41,9 +42,10 @@ export function createExhaust() {
    * Emit particles from the engine glow position. Spawns are accumulated as
    * fractions across frames so low spawn rates still emit evenly.
    */
-  function spawn(originWorld, forwardWorld, speed, dt) {
-    if (speed <= 0) return;
-    spawnAccumulator += speed * SPAWN_RATE * (dt / 60);
+  function spawn(originWorld, forwardWorld, speed, maxSpeed, dt) {
+    const t = (speed / maxSpeed - SPAWN_THRESHOLD) / (1 - SPAWN_THRESHOLD);
+    if (t <= 0) return;
+    spawnAccumulator += t * speed * SPAWN_RATE * (dt / 60);
     const count = Math.floor(spawnAccumulator);
     spawnAccumulator -= count;
 

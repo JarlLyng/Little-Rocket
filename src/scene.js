@@ -10,7 +10,7 @@ const NEBULA_COLORS = [0x4422aa, 0x882244, 0x224488, 0x6644aa, 0x4488cc, 0xaa446
 export function createScene() {
   const scene = new THREE.Scene();
   scene.background = makeSkyGradient();
-  scene.fog = new THREE.FogExp2(0x080418, 0.00018);
+  scene.fog = new THREE.FogExp2(0x000008, 0.0002);
 
   // Lower ambient + brighter directional gives bump maps more pronounced shading.
   scene.add(new THREE.AmbientLight(0x303048, 0.35));
@@ -48,7 +48,7 @@ export function createScene() {
   const streaks = makeStreakLayer(400, 4000);
   scene.add(streaks);
 
-  const nebulae = makeNebulae(6);
+  const nebulae = makeNebulae(4);
   for (const n of nebulae) scene.add(n.sprite);
 
   return { scene, sunMesh, halo, streaks, nebulae };
@@ -135,7 +135,9 @@ function makeNebulae(count) {
       map: makeRadialGradient(color),
       color: 0xffffff,
       transparent: true,
-      opacity: 0.22 + Math.random() * 0.12,
+      // Very low opacity — nebulae should read as a hint of color in deep
+      // space, not a dominant background element.
+      opacity: 0.06 + Math.random() * 0.05,
       depthWrite: false,
       blending: THREE.AdditiveBlending,
     }));
@@ -154,14 +156,16 @@ function makeNebulae(count) {
 }
 
 function makeSkyGradient() {
+  // Almost pure black with a barely-perceptible color shift, so the scene
+  // still reads as black space but doesn't feel as flat as #000000.
   const size = 512;
   const canvas = document.createElement('canvas');
   canvas.width = canvas.height = size;
   const ctx = canvas.getContext('2d');
   const grad = ctx.createLinearGradient(0, 0, 0, size);
-  grad.addColorStop(0,    '#0c0628'); // deep purple-blue at the top
-  grad.addColorStop(0.55, '#02020a'); // near-black at the horizon
-  grad.addColorStop(1,    '#0a0418'); // hint of violet underneath
+  grad.addColorStop(0,    '#02020a');
+  grad.addColorStop(0.5,  '#000000');
+  grad.addColorStop(1,    '#03020a');
   ctx.fillStyle = grad;
   ctx.fillRect(0, 0, size, size);
   return new THREE.CanvasTexture(canvas);
