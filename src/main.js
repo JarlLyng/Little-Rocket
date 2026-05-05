@@ -7,6 +7,8 @@ import { createControls } from './controls.js';
 import { initAudio, setEngineLevel, suspendAudio } from './audio.js';
 import { createExhaust } from './exhaust.js';
 import { prefersReducedMotion } from './motion.js';
+import { startMusic, toggleMusic, isMuted, hasMusic } from './music.js';
+import { startStory } from './story.js';
 
 const ROT_SPEED = 0.02;        // radians per 60fps-frame
 const ACCEL     = 0.05;        // speed delta per 60fps-frame
@@ -58,6 +60,23 @@ function setupHint() {
 
   button.addEventListener('click', show);
   show();
+}
+
+/**
+ * Reveal and wire the music toggle button — only when LOOPS are configured.
+ * If no loops are set up, the button stays hidden and the rest of the game
+ * is unaffected.
+ */
+function setupMusicButton() {
+  if (!hasMusic()) return;
+  const button = document.getElementById('music-button');
+  button.hidden = false;
+  button.classList.toggle('muted', isMuted());
+  button.addEventListener('click', () => {
+    const muted = toggleMusic();
+    button.classList.toggle('muted', muted);
+    button.setAttribute('aria-label', muted ? 'Unmute music' : 'Mute music');
+  });
 }
 
 function run() {
@@ -144,6 +163,9 @@ function run() {
         document.getElementById('ui').hidden = false;
         document.getElementById('hint-button').hidden = false;
         setupHint();
+        setupMusicButton();
+        startMusic();
+        startStory();
       }
     } else {
       // Normal input — only after the intro hands over control

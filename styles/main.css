@@ -132,11 +132,11 @@ h1 {
 #hint-toast[hidden] { display: none; }
 #hint-toast.visible { opacity: 1; }
 
-/* Subtle ? button to bring the hint back */
-#hint-button {
+/* Round HUD buttons (?, music) — same affordance, different actions */
+#hint-button,
+#music-button {
   position: fixed;
   top: var(--ij-spacing-md, 12px);
-  right: var(--ij-spacing-md, 12px);
   width: 32px;
   height: 32px;
   display: inline-flex;
@@ -150,17 +150,24 @@ h1 {
   font-weight: var(--ij-font-weight-semibold, 600);
   cursor: pointer;
   transition: color var(--ij-duration-fast, 150ms),
-              border-color var(--ij-duration-fast, 150ms);
+              border-color var(--ij-duration-fast, 150ms),
+              opacity var(--ij-duration-fast, 150ms);
 }
-#hint-button[hidden] { display: none; }
-#hint-button:hover {
+#hint-button { right: var(--ij-spacing-md, 12px); }
+#music-button { right: 56px; }
+#hint-button[hidden],
+#music-button[hidden] { display: none; }
+#hint-button:hover,
+#music-button:hover {
   color: var(--ij-color-text-primary, #fff);
   border-color: var(--ij-color-border-default, rgba(255, 255, 255, 0.18));
 }
-#hint-button:focus-visible {
+#hint-button:focus-visible,
+#music-button:focus-visible {
   outline: 2px solid var(--ij-color-primary, #D0FF00);
   outline-offset: 2px;
 }
+#music-button.muted { opacity: 0.4; }
 
 /* Near-miss flash — subtle ticker, never blocks the canvas */
 #near-miss {
@@ -182,3 +189,25 @@ h1 {
 }
 #near-miss[hidden] { display: none; }
 #near-miss.visible { opacity: 1; }
+
+/* Sci-fi narration — fades in/out at the bottom of the screen */
+#story {
+  position: fixed;
+  bottom: 80px;
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: min(640px, calc(100vw - 48px));
+  padding: 0 var(--ij-spacing-lg, 16px);
+  text-align: center;
+  font-size: var(--ij-font-size-lg, 18px);
+  line-height: var(--ij-line-height-relaxed, 28px);
+  font-style: italic;
+  color: rgba(255, 255, 255, 0.78);
+  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.7);
+  letter-spacing: 0.3px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 1200ms var(--ij-easing-standard);
+}
+#story[hidden] { display: none; }
+#story.visible { opacity: 1; }
