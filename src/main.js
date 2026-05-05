@@ -1,12 +1,15 @@
 import * as THREE from 'three';
-import { createScene, createCamera, createRenderer } from './scene.js';
+import { createScene, createCamera, createRenderer, updateStreaks, updateSun } from './scene.js';
 import { createRocket, updateGlow } from './rocket.js';
 import { createPlanetField } from './planets.js';
 import { createControls } from './controls.js';
+import { initAudio, setEngineLevel, suspendAudio } from './audio.js';
 
 const ROT_SPEED = 0.02;        // radians per 60fps-frame
 const ACCEL     = 0.05;        // speed delta per 60fps-frame
 const MAX_SPEED = 5;
+const FOV_IDLE  = 70;
+const FOV_MAX   = 95;          // FOV at full throttle — sells velocity
 
 const startBtn = document.getElementById('start-btn');
 startBtn.addEventListener('click', start, { once: true });
@@ -14,11 +17,14 @@ startBtn.addEventListener('click', start, { once: true });
 function start() {
   document.getElementById('start').hidden = true;
   document.getElementById('ui').hidden = false;
+  // Audio context must be created from a user gesture, so we init it here
+  // rather than at module load.
+  initAudio();
   run();
 }
 
 function run() {
-  const scene = createScene();
+  const { scene, sunMesh, halo, streaks } = createScene();
   const camera = createCamera();
   const renderer = createRenderer();
   document.body.appendChild(renderer.domElement);
@@ -45,19 +51,24 @@ function run() {
     renderer.setSize(window.innerWidth, window.innerHeight);
   });
 
+  // Pause audio when tab is hidden so we don't whine in the background.
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) suspendAudio();
+    else initAudio(); // resumes if already created
+  });
+
   function frame() {
     requestAnimationFrame(frame);
     if (document.hidden) return;
 
-    // Normalize to "60fps frames" so existing constants keep their feel.
     const dt = Math.min(clock.getDelta(), 1 / 30) * 60;
 
-    if (keys['ArrowUp'])                       rocketGroup.rotateX(-ROT_SPEED * dt);
-    if (keys['ArrowDown'])                     rocketGroup.rotateX( ROT_SPEED * dt);
-    if (keys['ArrowLeft']  || keys['KeyA'])    rocketGroup.rotateY( ROT_SPEED * dt);
-    if (keys['ArrowRight'] || keys['KeyD'])    rocketGroup.rotateY(-ROT_SPEED * dt);
-    if (keys['KeyQ'])                          rocketGroup.rotateZ( ROT_SPEED * dt);
-    if (keys['KeyE'])                          rocketGroup.rotateZ(-ROT_SPEED * dt);
+    if (keys['ArrowUp'])                    rocketGroup.rotateX(-ROT_SPEED * dt);
+    if (keys['ArrowDown'])                  rocketGroup.rotateX( ROT_SPEED * dt);
+    if (keys['ArrowLeft']  || keys['KeyA']) rocketGroup.rotateY( ROT_SPEED * dt);
+    if (keys['ArrowRight'] || keys['KeyD']) rocketGroup.rotateY(-ROT_SPEED * dt);
+    if (keys['KeyQ'])                       rocketGroup.rotateZ( ROT_SPEED * dt);
+    if (keys['KeyE'])                       rocketGroup.rotateZ(-ROT_SPEED * dt);
     if (keys['KeyW']) speed = Math.min(speed + ACCEL * dt, MAX_SPEED);
     if (keys['KeyS']) speed = Math.max(speed - ACCEL * dt, 0);
     speedEl.textContent = speed.toFixed(1);
@@ -66,6 +77,12 @@ function run() {
     rocketGroup.position.addScaledVector(forward, speed * dt);
 
     updateGlow(rocket, speed);
+    setEngineLevel(speed, MAX_SPEED);
+
+    // Speed-based FOV punch. Eased so it feels like acceleration, not a snap.
+    const targetFov = FOV_IDLE + (speed / MAX_SPEED) * (FOV_MAX - FOV_IDLE);
+    camera.fov += (targetFov - camera.fov) * 0.08;
+    camera.updateProjectionMatrix();
 
     camOffset.set(0, 2.5, 8).applyQuaternion(rocketGroup.quaternion);
     camera.position.lerp(rocketGroup.position.clone().add(camOffset), 0.15);
@@ -78,6 +95,8 @@ function run() {
     camera.up.set(0, 1, 0).applyQuaternion(rocketGroup.quaternion);
 
     planets.update(forward, dt);
+    updateStreaks(streaks, forward, speed, MAX_SPEED);
+    updateSun(sunMesh, halo, rocketGroup.position);
 
     renderer.render(scene, camera);
   }
