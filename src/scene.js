@@ -1,6 +1,8 @@
 import * as THREE from 'three';
 
-const SUN_DIRECTION = new THREE.Vector3(100, 50, 100).normalize();
+// Forward-right-up of the default rocket orientation (rocket starts pointing -z).
+// Putting the sun here means the player sees it the moment the game starts.
+const SUN_DIRECTION = new THREE.Vector3(0.4, 0.35, -1).normalize();
 const SUN_DISTANCE = 2200;
 
 export function createScene() {
@@ -12,6 +14,7 @@ export function createScene() {
   const sun = new THREE.DirectionalLight(0xffffff, 1.4);
   sun.position.copy(SUN_DIRECTION).multiplyScalar(100);
   scene.add(sun);
+  scene.add(sun.target); // target defaults to (0,0,0); explicit add lets us move it later
 
   // Visible sun: bright sphere + radial halo sprite. Both follow the rocket
   // each frame so the sun stays "infinitely far" in a fixed direction.
@@ -81,11 +84,12 @@ function makeStreakLayer(count, spread) {
  * collapse to zero length and disappear; above ~50% throttle they ramp in.
  */
 export function updateStreaks(streaks, forward, speed, maxSpeed) {
-  const t = Math.max(0, (speed / maxSpeed - 0.5) * 2); // 0 below 50%, 1 at max
-  streaks.material.opacity = t * 0.55;
+  // Ramp in from 25% throttle so streaks are visible across most of the speed range.
+  const t = Math.max(0, (speed / maxSpeed - 0.25) / 0.75);
+  streaks.material.opacity = t * 0.85;
   if (t === 0) return;
 
-  const length = t * 60;
+  const length = t * 200;
   const dx = forward.x * length, dy = forward.y * length, dz = forward.z * length;
   const arr = streaks.geometry.attributes.position.array;
   // Each segment: [sx,sy,sz, ex,ey,ez] — keep start, set end = start - forward*length

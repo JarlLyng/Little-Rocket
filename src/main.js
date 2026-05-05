@@ -8,8 +8,8 @@ import { initAudio, setEngineLevel, suspendAudio } from './audio.js';
 const ROT_SPEED = 0.02;        // radians per 60fps-frame
 const ACCEL     = 0.05;        // speed delta per 60fps-frame
 const MAX_SPEED = 5;
-const FOV_IDLE  = 70;
-const FOV_MAX   = 95;          // FOV at full throttle — sells velocity
+const FOV_IDLE  = 65;
+const FOV_MAX   = 110;         // FOV at full throttle — sells velocity
 
 const startBtn = document.getElementById('start-btn');
 startBtn.addEventListener('click', start, { once: true });
