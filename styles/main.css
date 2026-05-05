@@ -93,6 +93,31 @@ h1 {
   outline-offset: 3px;
 }
 
+/* Attribution + source link below the Start button. Never compete with the
+   primary CTA — small, dim, and centered. */
+.credits {
+  margin: var(--ij-spacing-md, 12px) 0 0;
+  font-size: var(--ij-font-size-xs, 12px);
+  color: var(--ij-color-text-tertiary, rgba(255, 255, 255, 0.6));
+  letter-spacing: 0.2px;
+}
+.credits a {
+  color: var(--ij-color-text-secondary, rgba(255, 255, 255, 0.75));
+  text-decoration: none;
+  border-bottom: 1px solid var(--ij-color-border-subtle, rgba(255, 255, 255, 0.12));
+  transition: color var(--ij-duration-fast, 150ms),
+              border-color var(--ij-duration-fast, 150ms);
+}
+.credits a:hover {
+  color: var(--ij-color-text-primary, #fff);
+  border-color: var(--ij-color-text-primary, #fff);
+}
+.credits a:focus-visible {
+  outline: 2px solid var(--ij-color-primary, #D0FF00);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
 /* HUD */
 #ui {
   position: fixed;
