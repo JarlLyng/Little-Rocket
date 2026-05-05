@@ -89,6 +89,8 @@ export function createPlanetField(scene, anchor) {
 
     group.userData.body = body;
     group.userData.moons = moons;
+    group.userData.radius = r;
+    group.userData.wasNear = false;
 
     const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(anchor.quaternion);
     const right   = new THREE.Vector3(1, 0,  0).applyQuaternion(anchor.quaternion);
@@ -107,7 +109,7 @@ export function createPlanetField(scene, anchor) {
 
   for (let i = 0; i < TARGET_COUNT; i++) spawn(true);
 
-  function update(forward, dt) {
+  function update(forward, dt, onNearMiss) {
     for (let i = planets.length - 1; i >= 0; i--) {
       const p = planets[i];
       p.userData.body.rotation.y += p.userData.body.userData.spinSpeed * dt;
@@ -124,7 +126,14 @@ export function createPlanetField(scene, anchor) {
       }
 
       const toPlanet = p.position.clone().sub(anchor.position);
-      if (toPlanet.dot(forward) < -200 || toPlanet.length() > 2500) {
+      const planetDist = toPlanet.length();
+      const nearThreshold = p.userData.radius * 2.2;
+      const isNear = planetDist < nearThreshold;
+      // Fire only on the rising edge — once per close encounter, not every frame.
+      if (isNear && !p.userData.wasNear && onNearMiss) onNearMiss();
+      p.userData.wasNear = isNear;
+
+      if (toPlanet.dot(forward) < -200 || planetDist > 2500) {
         scene.remove(p);
         p.traverse((obj) => {
           if (obj.isMesh) {

@@ -42,9 +42,23 @@
   </div>
 
   <div id="ui" hidden>
-    <span class="ui-label">Speed</span>
-    <span id="speed" class="ui-value">1.0</span>
+    <div class="ui-row">
+      <span class="ui-label">Speed</span>
+      <span id="speed" class="ui-value">1.0</span>
+    </div>
+    <div class="ui-row">
+      <span class="ui-label">Distance</span>
+      <span id="distance" class="ui-value">0 AU</span>
+    </div>
   </div>
+
+  <div id="hint-toast" hidden>
+    Arrow keys = steer · W/S = throttle · Q/E = roll · Mouse = look around
+  </div>
+
+  <button id="hint-button" type="button" hidden aria-label="Show controls">?</button>
+
+  <div id="near-miss" hidden>NEAR MISS</div>
 
   <script type="module" src="src/main.js"></script>
 </body>

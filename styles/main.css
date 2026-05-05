@@ -82,9 +82,10 @@ h1 {
   position: fixed;
   top: var(--ij-spacing-md, 12px);
   left: var(--ij-spacing-md, 12px);
-  display: inline-flex;
-  align-items: baseline;
-  gap: var(--ij-spacing-sm, 8px);
+  display: grid;
+  grid-template-columns: auto auto;
+  column-gap: var(--ij-spacing-md, 12px);
+  row-gap: var(--ij-spacing-xs, 4px);
   padding: var(--ij-spacing-sm, 8px) var(--ij-spacing-md, 12px);
   background: rgba(0, 0, 0, 0.5);
   border: 1px solid var(--ij-color-border-subtle, rgba(255, 255, 255, 0.12));
@@ -93,8 +94,80 @@ h1 {
   pointer-events: none;
 }
 
+.ui-row { display: contents; }
 .ui-label { color: var(--ij-color-text-secondary, rgba(255, 255, 255, 0.75)); }
 .ui-value {
   font-variant-numeric: tabular-nums;
   font-weight: var(--ij-font-weight-semibold, 600);
+  text-align: right;
 }
+
+/* Controls hint toast — shown briefly after start, summonable via the ? button */
+#hint-toast {
+  position: fixed;
+  top: var(--ij-spacing-md, 12px);
+  left: 50%;
+  transform: translateX(-50%);
+  padding: var(--ij-spacing-sm, 8px) var(--ij-spacing-lg, 16px);
+  background: rgba(0, 0, 0, 0.55);
+  border: 1px solid var(--ij-color-border-subtle, rgba(255, 255, 255, 0.12));
+  border-radius: var(--ij-radius-sm, 8px);
+  font-size: var(--ij-font-size-sm, 14px);
+  color: var(--ij-color-text-secondary, rgba(255, 255, 255, 0.75));
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity var(--ij-duration-slow, 400ms) var(--ij-easing-standard);
+}
+#hint-toast[hidden] { display: none; }
+#hint-toast.visible { opacity: 1; }
+
+/* Subtle ? button to bring the hint back */
+#hint-button {
+  position: fixed;
+  top: var(--ij-spacing-md, 12px);
+  right: var(--ij-spacing-md, 12px);
+  width: 32px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.5);
+  color: var(--ij-color-text-secondary, rgba(255, 255, 255, 0.75));
+  border: 1px solid var(--ij-color-border-subtle, rgba(255, 255, 255, 0.12));
+  border-radius: 50%;
+  font: inherit;
+  font-weight: var(--ij-font-weight-semibold, 600);
+  cursor: pointer;
+  transition: color var(--ij-duration-fast, 150ms),
+              border-color var(--ij-duration-fast, 150ms);
+}
+#hint-button[hidden] { display: none; }
+#hint-button:hover {
+  color: var(--ij-color-text-primary, #fff);
+  border-color: var(--ij-color-border-default, rgba(255, 255, 255, 0.18));
+}
+#hint-button:focus-visible {
+  outline: 2px solid var(--ij-color-primary, #D0FF00);
+  outline-offset: 2px;
+}
+
+/* Near-miss flash — subtle ticker, never blocks the canvas */
+#near-miss {
+  position: fixed;
+  top: 64px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: var(--ij-spacing-xs, 4px) var(--ij-spacing-md, 12px);
+  background: rgba(0, 0, 0, 0.5);
+  border: 1px solid var(--ij-color-primary, #D0FF00);
+  border-radius: var(--ij-radius-sm, 8px);
+  color: var(--ij-color-primary, #D0FF00);
+  font-size: var(--ij-font-size-xs, 12px);
+  font-weight: var(--ij-font-weight-bold, 700);
+  letter-spacing: 1px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity var(--ij-duration-fast, 150ms) var(--ij-easing-standard);
+}
+#near-miss[hidden] { display: none; }
+#near-miss.visible { opacity: 1; }

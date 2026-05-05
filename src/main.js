@@ -16,13 +16,46 @@ const FOV_MAX   = 110;         // FOV at full throttle — sells velocity
 const startBtn = document.getElementById('start-btn');
 startBtn.addEventListener('click', start, { once: true });
 
+const HINT_VISIBLE_MS = 6000;
+const HINT_FADE_MS = 400; // matches --ij-duration-slow in CSS
+const NEAR_MISS_VISIBLE_MS = 700;
+
 function start() {
   document.getElementById('start').hidden = true;
   document.getElementById('ui').hidden = false;
+  document.getElementById('hint-button').hidden = false;
   // Audio context must be created from a user gesture, so we init it here
   // rather than at module load.
   initAudio();
+  setupHint();
   run();
+}
+
+/**
+ * Show the controls reminder briefly, then fade. Click '?' any time to bring
+ * it back. Calling showHint() while it's already up resets the timer.
+ */
+function setupHint() {
+  const toast = document.getElementById('hint-toast');
+  const button = document.getElementById('hint-button');
+  let hideTimer = null;
+  let removeTimer = null;
+
+  function show() {
+    if (removeTimer) clearTimeout(removeTimer);
+    if (hideTimer) clearTimeout(hideTimer);
+    toast.hidden = false;
+    // Force a reflow so the transition runs from opacity 0 → 1.
+    void toast.offsetWidth;
+    toast.classList.add('visible');
+    hideTimer = setTimeout(() => {
+      toast.classList.remove('visible');
+      removeTimer = setTimeout(() => { toast.hidden = true; }, HINT_FADE_MS);
+    }, HINT_VISIBLE_MS);
+  }
+
+  button.addEventListener('click', show);
+  show();
 }
 
 function run() {
@@ -42,8 +75,23 @@ function run() {
 
   const { keys, mouse } = createControls();
   const speedEl = document.getElementById('speed');
+  const distanceEl = document.getElementById('distance');
+  const nearMissEl = document.getElementById('near-miss');
 
   let speed = 1.0;
+  let distanceAU = 0;
+  let nearMissTimer = null;
+  function flashNearMiss() {
+    nearMissEl.hidden = false;
+    void nearMissEl.offsetWidth;
+    nearMissEl.classList.add('visible');
+    if (nearMissTimer) clearTimeout(nearMissTimer);
+    nearMissTimer = setTimeout(() => {
+      nearMissEl.classList.remove('visible');
+      // Wait for the fade transition before hiding entirely
+      setTimeout(() => { nearMissEl.hidden = true; }, 200);
+    }, NEAR_MISS_VISIBLE_MS);
+  }
   const clock = new THREE.Clock();
   const forward = new THREE.Vector3();
   const camOffset = new THREE.Vector3();
@@ -79,6 +127,9 @@ function run() {
     if (keys['KeyW']) speed = Math.min(speed + ACCEL * dt, MAX_SPEED);
     if (keys['KeyS']) speed = Math.max(speed - ACCEL * dt, 0);
     speedEl.textContent = speed.toFixed(1);
+
+    distanceAU += speed * dt / 60;
+    distanceEl.textContent = `${Math.floor(distanceAU)} AU`;
 
     forward.set(0, 0, -1).applyQuaternion(rocketGroup.quaternion);
     rocketGroup.position.addScaledVector(forward, speed * dt);
@@ -119,7 +170,7 @@ function run() {
     camera.lookAt(lookTarget);
     camera.up.set(0, 1, 0).applyQuaternion(rocketGroup.quaternion);
 
-    planets.update(forward, dt);
+    planets.update(forward, dt, flashNearMiss);
     // Star streaks read as motion; when reduced-motion is set, force them invisible.
     updateStreaks(streaks, forward, reducedMotion ? 0 : speed, MAX_SPEED);
     updateSun(sunMesh, halo, rocketGroup.position);
