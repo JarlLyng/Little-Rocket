@@ -31,6 +31,7 @@ import { initMusic, startMusic, toggleMusic, isMuted, hasMusic } from './music.j
 import { startStory } from './story.js';
 import { trackOnce, trackEvent } from './analytics.js';
 import { fetchTotalDistance, reportSessionDistance } from './stats.js';
+import { checkMilestone } from './milestones.js';
 
 const ROT_SPEED = 0.02;        // radians per 60fps-frame
 const ACCEL     = 0.05;        // speed delta per 60fps-frame
@@ -56,6 +57,8 @@ fetchTotalDistance().then((stats) => {
 const HINT_VISIBLE_MS = 6000;
 const HINT_FADE_MS = 400; // matches --ij-duration-slow in CSS
 const NEAR_MISS_VISIBLE_MS = 700;
+const MILESTONE_VISIBLE_MS = 3200;
+const MILESTONE_FADE_MS = 600; // matches CSS transition
 const INTRO_DURATION = 1.6;     // seconds of cinematic intro before player takes control
 const INTRO_FOV_START = 50;     // narrow FOV → opens up to FOV_IDLE
 const INTRO_CAM_DISTANCE = 60;  // how far back the camera starts behind the rocket
@@ -168,6 +171,26 @@ function run() {
     }, NEAR_MISS_VISIBLE_MS);
     trackOnce('first-near-miss', { distance: Math.floor(distanceAU) });
   }
+
+  const milestoneEl = document.getElementById('milestone-toast');
+  const milestoneDistanceEl = document.getElementById('milestone-distance');
+  const milestoneLabelEl = document.getElementById('milestone-label');
+  let milestoneHideTimer = null;
+  let milestoneRemoveTimer = null;
+  function flashMilestone(milestone) {
+    if (milestoneHideTimer) clearTimeout(milestoneHideTimer);
+    if (milestoneRemoveTimer) clearTimeout(milestoneRemoveTimer);
+    milestoneDistanceEl.textContent = `${milestone.au.toLocaleString()} AU`;
+    milestoneLabelEl.textContent = milestone.label;
+    milestoneEl.hidden = false;
+    void milestoneEl.offsetWidth;
+    milestoneEl.classList.add('visible');
+    milestoneHideTimer = setTimeout(() => {
+      milestoneEl.classList.remove('visible');
+      milestoneRemoveTimer = setTimeout(() => { milestoneEl.hidden = true; }, MILESTONE_FADE_MS);
+    }, MILESTONE_VISIBLE_MS);
+    trackEvent('milestone-reached', { au: milestone.au });
+  }
   const clock = new THREE.Clock();
   const forward = new THREE.Vector3();
   const camOffset = new THREE.Vector3();
@@ -255,6 +278,7 @@ function run() {
     speedEl.textContent = speed.toFixed(1);
     distanceAU += speed * realDt;
     distanceEl.textContent = `${Math.floor(distanceAU)} AU`;
+    checkMilestone(distanceAU, flashMilestone);
     if (isTouch && introDone) {
       throttleFill.style.height = `${(speed / MAX_SPEED) * 100}%`;
     }

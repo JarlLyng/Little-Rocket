@@ -274,6 +274,52 @@ h1 {
 #near-miss[hidden] { display: none; }
 #near-miss.visible { opacity: 1; }
 
+/* Milestone toast — fires once per session when the rocket crosses a round
+   AU threshold. Bigger and more present than the near-miss flash, but still
+   non-blocking and pointer-event-free. */
+#milestone-toast {
+  position: fixed;
+  top: 28%;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: var(--ij-spacing-lg, 16px) var(--ij-spacing-xxxl, 32px);
+  background: rgba(0, 0, 0, 0.78);
+  border: 2px solid var(--ij-color-primary, #D0FF00);
+  border-radius: var(--ij-radius-md, 12px);
+  box-shadow: 0 0 32px rgba(208, 255, 0, 0.28);
+  text-align: center;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 600ms var(--ij-easing-emphasized,
+    cubic-bezier(0.2, 0, 0, 1));
+}
+#milestone-toast[hidden] { display: none; }
+#milestone-toast.visible { opacity: 1; }
+
+.milestone-distance {
+  display: block;
+  font-size: var(--ij-font-size-xl, 24px);
+  font-weight: var(--ij-font-weight-bold, 700);
+  color: var(--ij-color-primary, #D0FF00);
+  letter-spacing: 2px;
+  font-variant-numeric: tabular-nums;
+}
+
+.milestone-label {
+  display: block;
+  margin-top: var(--ij-spacing-xs, 4px);
+  font-size: var(--ij-font-size-sm, 14px);
+  color: var(--ij-color-text-secondary, rgba(255, 255, 255, 0.78));
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+}
+
+@media (max-width: 480px) {
+  .milestone-distance { font-size: var(--ij-font-size-lg, 18px); }
+  .milestone-label    { font-size: var(--ij-font-size-xs, 12px); }
+  #milestone-toast    { padding: var(--ij-spacing-md, 12px) var(--ij-spacing-xl, 20px); }
+}
+
 /* Throttle bar: vertical fill on the right edge that mirrors current speed.
    Visible only on touch devices (no benefit when keyboard handles throttle). */
 #throttle-bar {
