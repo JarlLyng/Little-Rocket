@@ -12,7 +12,9 @@
  * working — collective stats are a nice-to-have, not a hard dependency.
  */
 
-const API_URL = 'https://little-rocket-api.iamjarl.com/api/distance';
+// Same-origin path. Frontend and API are deployed together on Vercel, so
+// no CORS preflight, no cross-origin auth complexity.
+const API_URL = '/api/distance';
 
 export async function fetchTotalDistance() {
   try {

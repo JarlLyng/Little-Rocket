@@ -15,7 +15,6 @@
 
 import { createClient } from '@libsql/client';
 
-const ALLOWED_ORIGIN = 'https://littlerocket.iamjarl.com';
 const MAX_AU_PER_SESSION = 1_000_000; // anti-garbage cap
 
 let client = null;
@@ -46,10 +45,13 @@ async function ensureSchema() {
 }
 
 function applyCors(res) {
-  res.setHeader('Access-Control-Allow-Origin', ALLOWED_ORIGIN);
+  // Same-origin in production (Vercel serves both static and API). Wildcard
+  // here is mainly to keep `python3 -m http.server` cross-origin local dev
+  // working — the only write-side risk is fake distance values, which are
+  // bounded by the MAX_AU_PER_SESSION check below.
+  res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-  res.setHeader('Vary', 'Origin');
 }
 
 function parseBody(raw) {

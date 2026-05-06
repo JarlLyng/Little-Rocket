@@ -34,7 +34,7 @@ jobs:
             index.html
             styles/main.css
             vendor/iamjarl-tokens.css
-            CNAME
+            vercel.json
             robots.txt
             sitemap.xml
             audio/00.m4a
