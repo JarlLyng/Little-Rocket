@@ -4,22 +4,63 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#000000">
-  <meta name="description" content="Little Rocket — fly through space in a tiny rocket.">
+  <meta name="description" content="A tiny browser game about flying a small ship through the long dark. No score, no fail state — just stars, planets, and the slow procession of distance.">
+
+  <link rel="canonical" href="https://littlerocket.iamjarl.com/">
 
   <meta property="og:title" content="Little Rocket">
-  <meta property="og:description" content="Fly through space in a tiny rocket.">
+  <meta property="og:description" content="A tiny browser game about flying a small ship through the long dark. No score, no fail state — just stars, planets, and the slow procession of distance.">
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://littlerocket.iamjarl.com/">
   <meta property="og:image" content="https://littlerocket.iamjarl.com/og-image.png">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
-  <meta name="twitter:card" content="summary_large_image">
+  <meta property="og:image:alt" content="Little Rocket — a small ship in the long dark">
+  <meta property="og:site_name" content="Little Rocket">
+  <meta property="og:locale" content="en_US">
 
-  <title>Little Rocket</title>
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Little Rocket">
+  <meta name="twitter:description" content="A tiny browser game about flying a small ship through the long dark.">
+  <meta name="twitter:image" content="https://littlerocket.iamjarl.com/og-image.png">
+
+  <title>Little Rocket — A meditative browser space game</title>
 
   <link rel="icon" type="image/png" href="favicon.png">
+  <link rel="apple-touch-icon" href="favicon.png">
+  <link rel="manifest" href="manifest.json">
   <link rel="stylesheet" href="vendor/iamjarl-tokens.css">
   <link rel="stylesheet" href="styles/main.css">
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "VideoGame",
+    "name": "Little Rocket",
+    "description": "A tiny browser game about flying a small ship through the long dark. No score, no fail state — just stars, planets, and the slow procession of distance.",
+    "url": "https://littlerocket.iamjarl.com/",
+    "image": "https://littlerocket.iamjarl.com/og-image.png",
+    "applicationCategory": "GameApplication",
+    "operatingSystem": "Web Browser",
+    "genre": ["Casual", "Atmospheric", "Space"],
+    "inLanguage": "en",
+    "author": {
+      "@type": "Person",
+      "name": "Jarl Lyng",
+      "url": "https://iamjarl.com/"
+    },
+    "publisher": {
+      "@type": "Person",
+      "name": "Jarl Lyng",
+      "url": "https://iamjarl.com/"
+    },
+    "offers": {
+      "@type": "Offer",
+      "price": "0",
+      "priceCurrency": "USD"
+    }
+  }
+  </script>
 
   <script type="importmap">
     { "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js" } }
