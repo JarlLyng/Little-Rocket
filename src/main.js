@@ -103,6 +103,7 @@ function setupMusicButton() {
   const button = document.getElementById('music-button');
   button.hidden = false;
   button.classList.toggle('muted', isMuted());
+  button.setAttribute('aria-label', isMuted() ? 'Unmute music' : 'Mute music');
   button.addEventListener('click', () => {
     const muted = toggleMusic();
     button.classList.toggle('muted', muted);

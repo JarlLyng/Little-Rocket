@@ -1,0 +1,54 @@
+name: Quality
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate design tokens
+        run: ./scripts/check-tokens.sh
+
+      - name: Check JavaScript syntax
+        run: |
+          set -e
+          for f in src/*.js; do
+            node --check "$f"
+          done
+
+      - name: Verify referenced assets exist
+        run: |
+          set -e
+          required=(
+            favicon.png
+            og-image.png
+            index.html
+            styles/main.css
+            vendor/iamjarl-tokens.css
+            CNAME
+            robots.txt
+            sitemap.xml
+            audio/00.m4a
+            audio/01.m4a
+            audio/02.m4a
+            audio/03.m4a
+          )
+          for f in "${required[@]}"; do
+            test -f "$f" || { echo "Missing: $f"; exit 1; }
+          done
+
+      - name: Reject TODO/FIXME/XXX in source
+        run: |
+          if grep -rnE 'TODO|FIXME|XXX' src/ styles/ index.html; then
+            echo "Found tracking markers in source — open a GitHub issue instead."
+            exit 1
+          fi

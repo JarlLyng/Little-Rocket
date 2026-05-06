@@ -32,7 +32,7 @@ const PRELOAD_LEAD_S = 0.05; // tiny offset so the very first source starts clea
 let ctx = null;
 let masterGain = null;
 let buffers = [];
-let loadingPromise = null;
+let firstReady = null;       // resolves when buffers[0] is decoded (or fails)
 let lastScheduledEndTime = 0;
 let initialIndex = 0;
 let lastIndex = -1;
@@ -63,7 +63,7 @@ export function initMusic() {
   })();
   masterGain.gain.value = muted ? 0 : VOLUME;
   masterGain.connect(ctx.destination);
-  loadingPromise = loadAll();
+  loadAll();
   document.addEventListener('visibilitychange', onVisibilityChange);
 }
 
@@ -79,12 +79,18 @@ export async function startMusic() {
     try { await ctx.resume(); } catch { /* ignore */ }
   }
 
-  if (loadingPromise) {
-    try { await loadingPromise; } catch { /* loadAll already logged */ }
+  // Wait only for the FIRST buffer so playback can begin as soon as it's
+  // ready, even on slow connections. The rest stream into place during
+  // the first track and are picked up by scheduleNext when ready.
+  if (firstReady) {
+    try { await firstReady; } catch { /* loadOne already logged */ }
   }
-  if (buffers.length === 0) return;
+  if (!buffers[0]) return;
 
-  // Schedule the first two so there's always one queued ahead of the playhead.
+  // Queue two sources ahead so transitions are sample-accurate. If the
+  // second buffer isn't loaded yet, scheduleNext retries via setTimeout
+  // and will catch up before the first track finishes (typical loop is
+  // 30+ seconds, plenty of time on any working connection).
   lastScheduledEndTime = ctx.currentTime + PRELOAD_LEAD_S;
   scheduleNext();
   scheduleNext();
@@ -101,47 +107,73 @@ export function toggleMusic() {
   return muted;
 }
 
-async function loadAll() {
-  try {
-    buffers = await Promise.all(LOOPS.map(async (url) => {
-      const response = await fetch(url);
-      if (!response.ok) throw new Error(`${url}: HTTP ${response.status}`);
-      const arrayBuffer = await response.arrayBuffer();
-      return await ctx.decodeAudioData(arrayBuffer);
-    }));
-  } catch (err) {
-    console.warn('Music load failed:', err);
-    buffers = [];
-  }
+function loadAll() {
+  // Sequential fetch keeps the network from splitting bandwidth across all
+  // four files at once — the first one finishes faster, music starts sooner.
+  // Buffers populate in order; scheduleNext gracefully handles a slot that
+  // isn't ready yet.
+  buffers = new Array(LOOPS.length).fill(null);
+
+  let firstResolve;
+  firstReady = new Promise((resolve) => { firstResolve = resolve; });
+
+  (async () => {
+    for (let i = 0; i < LOOPS.length; i++) {
+      try {
+        const response = await fetch(LOOPS[i]);
+        if (!response.ok) throw new Error(`${LOOPS[i]}: HTTP ${response.status}`);
+        const arrayBuffer = await response.arrayBuffer();
+        buffers[i] = await ctx.decodeAudioData(arrayBuffer);
+      } catch (err) {
+        console.warn('Music load failed:', LOOPS[i], err);
+      }
+      if (i === 0) firstResolve();
+    }
+  })();
 }
 
 function pickNextIndex() {
-  // First pass: deterministic order so the curated sequence plays once.
-  if (initialIndex < LOOPS.length) return initialIndex++;
-  // Subsequent passes: random with no immediate repeat.
-  if (LOOPS.length === 1) return 0;
-  let idx;
-  do { idx = Math.floor(Math.random() * LOOPS.length); }
-  while (idx === lastIndex);
-  return idx;
+  // First pass: deterministic order, but only return slots whose buffer
+  // is already loaded. If the next curated slot isn't ready yet, return -1
+  // so scheduleNext can retry shortly.
+  if (initialIndex < LOOPS.length) {
+    return buffers[initialIndex] ? initialIndex++ : -1;
+  }
+  // Subsequent passes: random over loaded buffers, no immediate repeat.
+  const ready = [];
+  for (let i = 0; i < LOOPS.length; i++) {
+    if (buffers[i] && i !== lastIndex) ready.push(i);
+  }
+  if (ready.length === 0) return buffers[lastIndex] ? lastIndex : -1;
+  return ready[Math.floor(Math.random() * ready.length)];
 }
 
 function scheduleNext() {
-  if (buffers.length === 0) return;
   const idx = pickNextIndex();
+  if (idx === -1) {
+    // The next track in the curated order is still loading. Retry in a
+    // moment — the audio engine will accept the .start(when) just-in-time
+    // as long as `when` is in the future.
+    setTimeout(scheduleNext, 250);
+    return;
+  }
   lastIndex = idx;
   const buffer = buffers[idx];
+
+  // If we waited for a slow load, lastScheduledEndTime may be in the past.
+  // Push it forward so the new source starts cleanly.
+  const startAt = Math.max(lastScheduledEndTime, ctx.currentTime + PRELOAD_LEAD_S);
 
   const source = ctx.createBufferSource();
   source.buffer = buffer;
   source.connect(masterGain);
-  source.start(lastScheduledEndTime);
+  source.start(startAt);
 
   // When this source finishes playing, schedule one more to keep the
   // chain one buffer ahead of the playhead.
   source.onended = scheduleNext;
 
-  lastScheduledEndTime += buffer.duration;
+  lastScheduledEndTime = startAt + buffer.duration;
 }
 
 function onVisibilityChange() {

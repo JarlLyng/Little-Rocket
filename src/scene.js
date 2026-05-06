@@ -268,7 +268,12 @@ function makeGradientTexture(hexColor, stops) {
 export function createRenderer() {
   const renderer = new THREE.WebGLRenderer({ antialias: true });
   renderer.setSize(window.innerWidth, window.innerHeight);
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  // Cap pixel ratio lower on touch devices — mobile GPUs choke on retina-
+  // density 3D scenes with our planet/asteroid/star/streak count.
+  const isTouch = typeof window !== 'undefined'
+    && window.matchMedia('(hover: none) and (pointer: coarse)').matches;
+  const cap = isTouch ? 1.5 : 2;
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, cap));
   return renderer;
 }
 

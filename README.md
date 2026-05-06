@@ -56,14 +56,44 @@ The HUD shows speed and distance traveled (in AU). A subtle **NEAR MISS** flash 
 The project is plain static files, but ES module imports require a real `http://` origin — opening `index.html` straight from disk will not work.
 
 ```bash
-npx serve .
+python3 -m http.server   # zero install on macOS / most Linux
 # or
-python3 -m http.server
+npx serve .              # needs network on first run to fetch the package
 ```
 
 Then open the URL the server prints.
 
 There is **no build step**. Everything in the repo root is served as-is, both locally and on GitHub Pages. Three.js comes from `cdn.jsdelivr.net` via an import map in `index.html` — no `npm install` needed.
+
+## Browser support
+
+Tested on the current versions of Chrome, Edge, Firefox, and Safari (desktop and iOS). Requirements:
+
+- **WebGL** (Three.js)
+- **ES modules + import maps** — Chrome 89+, Firefox 108+, Safari 16.4+, iOS Safari 16.4+
+- **Web Audio API** for engine + music
+- **Pointer events** for the touch joystick / throttle (every modern browser)
+
+There is no transpilation — older browsers will silently fail to load the import map and the page will stay on the Start screen without a working button. That's acceptable for a hobby project; if it bothers you, transpile and bundle.
+
+## Performance budget
+
+Targets:
+
+| Surface | Target |
+|---|---|
+| Modern desktop / laptop | 60 FPS at native resolution, DPR cap 2 |
+| Modern phone / tablet | 60 FPS at DPR cap 1.5 |
+| Low-end mobile | 30+ FPS (no automatic fallback yet — see #future) |
+
+Initial payload:
+
+- HTML + CSS + JS modules: ~30 KB gzipped
+- Three.js (CDN, cached after first visit): ~600 KB gzipped
+- Four AAC music loops: ~2.3 MB total, lazy-loaded sequentially during the cinematic intro
+- Engine sound: synthesized at runtime — no audio file
+
+The renderer caps `devicePixelRatio` at 1.5 on touch devices (`scene.js:createRenderer`). Adaptive quality (auto-downgrading streaks/star count if frame time drifts) is on the roadmap but not implemented yet.
 
 ---
 
@@ -95,7 +125,7 @@ src/
   controls.js                Keyboard + mouse input bridge
   motion.js                  prefers-reduced-motion gate
 
-audio/                       Music loop MP3s go here (see audio/README.md)
+audio/                       Music loops (AAC/M4A) — see audio/README.md
 
 scripts/
   check-tokens.sh            Verifies all --ij-* tokens exist in vendor file
