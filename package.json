@@ -1,0 +1,12 @@
+{
+  "name": "little-rocket-api",
+  "private": true,
+  "type": "module",
+  "description": "Vercel functions for Little Rocket. Static site lives at the repo root and is served by GitHub Pages — these are only the serverless endpoints.",
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@libsql/client": "^0.14.0"
+  }
+}

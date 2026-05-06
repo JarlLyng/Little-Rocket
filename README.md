@@ -124,6 +124,12 @@ src/
   story.js                   Slow sci-fi narrative cycle
   controls.js                Keyboard + mouse input bridge
   motion.js                  prefers-reduced-motion gate
+  analytics.js               Umami event wrapper
+  stats.js                   Collective-distance API client
+
+api/
+  distance.js                Vercel serverless function (Turso-backed)
+package.json                 Dependencies for the API only
 
 audio/                       Music loops (AAC/M4A) — see audio/README.md
 
@@ -190,6 +196,7 @@ Two important conventions:
 | `controls.js` | Keyboard + mouse listeners, blur-resets all keys | `createControls` |
 | `motion.js` | `prefers-reduced-motion` matchMedia gate, live-updates | `prefersReducedMotion` |
 | `analytics.js` | Thin wrapper over Umami, with once-per-session helper | `trackEvent`, `trackOnce` |
+| `stats.js` | Collective-distance API client (Turso-backed via /api/distance) | `fetchTotalDistance`, `reportSessionDistance` |
 
 ---
 
@@ -269,9 +276,33 @@ The script verifies that every `--ij-*` token referenced in our CSS still exists
 
 ## Deployment
 
-Hosted on GitHub Pages with the custom domain `littlerocket.iamjarl.com`. There is no build step — everything in the repo root is served as-is.
+The site is split across two providers:
 
-GitHub Pages re-deploys on every push to `main`. Cache-Control is set to 10 minutes, so test changes with a hard refresh (Cmd/Ctrl+Shift+R) if they appear missing.
+- **Static frontend** — GitHub Pages on the custom domain `littlerocket.iamjarl.com`. No build step; every file in the repo root is served as-is. Cache-Control is set to 10 minutes, so test with a hard refresh (Cmd/Ctrl+Shift+R) if changes appear missing.
+- **Distance counter API** — Vercel serverless function in `api/distance.js`, backed by [Turso](https://turso.tech/) (libSQL/SQLite). Deployed to a separate subdomain (default: `little-rocket-api.iamjarl.com`). Optional — if it's down, the start-screen line just doesn't render and the game keeps working.
+
+### One-time API setup
+
+1. Create a Turso project and database for `little-rocket`. Capture the database URL and an auth token.
+2. Create a Vercel project pointed at this repo. In **Settings → Environment Variables**, add:
+   - `TURSO_DATABASE_URL` (e.g. `libsql://little-rocket-yourorg.turso.io`)
+   - `TURSO_AUTH_TOKEN`
+3. Add a custom domain (e.g. `little-rocket-api.iamjarl.com`) so the frontend has a stable URL to call. If you change the domain, update `API_URL` in `src/stats.js`.
+4. Push to `main`. Vercel runs `npm install` (only `@libsql/client` is pulled in) and exposes `/api/distance`. The schema is created lazily on the first request.
+
+### Schema
+
+`api/distance.js` lazily creates a single table:
+
+```sql
+CREATE TABLE sessions (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  distance_au INTEGER NOT NULL CHECK (distance_au >= 0 AND distance_au <= 1000000),
+  created_at INTEGER NOT NULL DEFAULT (unixepoch())
+);
+```
+
+To extend: `ALTER TABLE sessions ADD COLUMN max_speed REAL` and similar — SQLite handles it without a migration tool.
 
 ### Analytics
 

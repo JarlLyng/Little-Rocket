@@ -21,7 +21,7 @@ jobs:
       - name: Check JavaScript syntax
         run: |
           set -e
-          for f in src/*.js; do
+          for f in src/*.js api/*.js; do
             node --check "$f"
           done
 
@@ -48,7 +48,7 @@ jobs:
 
       - name: Reject TODO/FIXME/XXX in source
         run: |
-          if grep -rnE 'TODO|FIXME|XXX' src/ styles/ index.html; then
+          if grep -rnE 'TODO|FIXME|XXX' src/ styles/ api/ index.html; then
             echo "Found tracking markers in source — open a GitHub issue instead."
             exit 1
           fi
