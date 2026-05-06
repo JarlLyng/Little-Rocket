@@ -6,6 +6,12 @@
  * immediate repeat. AAC/M4A — modern browsers all support it; smaller
  * files than MP3 at the same quality.
  *
+ * Gap-free handover: while the current track plays, the next track is
+ * already created with preload='auto' so the file is fetched and decoded
+ * in the background. When the current track's `ended` fires, the next
+ * element is ready and .play() starts almost instantly (~tens of ms vs
+ * ~1s for cold instantiation).
+ *
  * If LOOPS is empty, the rest of the module no-ops and the music button
  * stays hidden. Engine audio still works either way.
  *
@@ -22,11 +28,13 @@ const LOOPS = [
 const VOLUME = 0.4;
 const STORAGE_KEY = 'little-rocket:music-muted';
 
-let current = null;
+let current = null;     // currently playing HTMLAudioElement
+let next = null;        // pre-loaded HTMLAudioElement waiting to play
+let nextUrl = null;     // the URL we picked for `next` (kept for lastUrl tracking)
 let muted = false;
 let started = false;
-let initialIndex = 0;   // walks LOOPS in order on the first pass
-let lastUrl = null;     // for no-repeat random selection after the first pass
+let initialIndex = 0;
+let lastUrl = null;
 
 export function hasMusic() {
   return LOOPS.length > 0;
@@ -36,13 +44,22 @@ export function startMusic() {
   if (started || !hasMusic()) return;
   started = true;
   muted = localStorage.getItem(STORAGE_KEY) === '1';
-  playNext();
+
+  const url = pickNextUrl();
+  lastUrl = url;
+  current = createAudio(url);
+  current.addEventListener('ended', advance, { once: true });
+  current.play().catch((err) => console.warn('Music could not start:', url, err));
+
+  prefetchNext();
 }
 
 export function toggleMusic() {
   muted = !muted;
   try { localStorage.setItem(STORAGE_KEY, muted ? '1' : '0'); } catch { /* private mode */ }
-  if (current) current.volume = muted ? 0 : VOLUME;
+  const v = muted ? 0 : VOLUME;
+  if (current) current.volume = v;
+  if (next)    next.volume = v;
   return muted;
 }
 
@@ -50,7 +67,7 @@ export function isMuted() {
   return muted;
 }
 
-function pickNext() {
+function pickNextUrl() {
   // First pass: deterministic order so the curated sequence plays once.
   if (initialIndex < LOOPS.length) return LOOPS[initialIndex++];
   // Subsequent passes: random with no immediate repeat.
@@ -61,16 +78,38 @@ function pickNext() {
   return url;
 }
 
-function playNext() {
-  const url = pickNext();
-  lastUrl = url;
+function createAudio(url) {
   const audio = new Audio(url);
+  audio.preload = 'auto';
   audio.volume = muted ? 0 : VOLUME;
-  audio.addEventListener('ended', playNext, { once: true });
-  audio.play().catch((err) => {
-    // Autoplay blocked, file missing, or unsupported codec.
-    // Fail silently — the game keeps working without music.
-    console.warn('Music could not start:', url, err);
-  });
-  current = audio;
+  // Trigger eager fetch + decode. Browser may already do this but be explicit.
+  audio.load();
+  return audio;
+}
+
+function prefetchNext() {
+  nextUrl = pickNextUrl();
+  next = createAudio(nextUrl);
+}
+
+function advance() {
+  if (next) {
+    // Promote the pre-loaded element. By now the file is fetched and
+    // decoded (we had the entire current loop's duration to load it),
+    // so .play() starts almost immediately.
+    lastUrl = nextUrl;
+    current = next;
+    next = null;
+    nextUrl = null;
+    current.addEventListener('ended', advance, { once: true });
+    current.play().catch((err) => console.warn('Music advance failed:', err));
+  } else {
+    // Fallback: prefetch hadn't completed (network glitch, fast end).
+    const url = pickNextUrl();
+    lastUrl = url;
+    current = createAudio(url);
+    current.addEventListener('ended', advance, { once: true });
+    current.play().catch((err) => console.warn('Music cold start failed:', err));
+  }
+  prefetchNext();
 }
