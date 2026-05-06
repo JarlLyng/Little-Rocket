@@ -32,6 +32,7 @@ jobs:
             favicon.png
             og-image.png
             index.html
+            manifest.json
             styles/main.css
             vendor/iamjarl-tokens.css
             vercel.json

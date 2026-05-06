@@ -1,0 +1,21 @@
+{
+  "name": "Little Rocket",
+  "short_name": "Rocket",
+  "description": "A tiny browser game about flying a small ship through the long dark.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#000000",
+  "theme_color": "#000000",
+  "categories": ["games", "entertainment"],
+  "lang": "en",
+  "icons": [
+    {
+      "src": "/favicon.png",
+      "sizes": "192x192 512x512 1024x1024",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}
