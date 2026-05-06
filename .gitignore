@@ -3,3 +3,10 @@ node_modules/
 *.log
 .vscode/
 .idea/
+
+# Local environment — Vercel writes credentials to .env.local on `vercel env pull`.
+# Never commit any flavor of these.
+.env
+.env.local
+.env.*.local
+.vercel/
