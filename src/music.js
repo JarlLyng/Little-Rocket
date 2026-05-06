@@ -1,21 +1,21 @@
 /**
- * Background music.
+ * Background music with sample-accurate gapless transitions.
  *
- * Plays loops in array order on the first cycle (so the player hears them
- * in the intended sequence), then switches to random selection with no
- * immediate repeat. AAC/M4A — modern browsers all support it; smaller
- * files than MP3 at the same quality.
+ * Implementation: Web Audio API. All loops are decoded into AudioBuffers
+ * up front. Each track plays through an AudioBufferSourceNode whose
+ * .start(when) is scheduled at the exact end time of the previous one.
+ * Two sources are kept ahead in the chain at any moment, so the audio
+ * engine has the next clip queued before the current one finishes —
+ * no gap, not even a millisecond.
  *
- * Gap-free handover: while the current track plays, the next track is
- * already created with preload='auto' so the file is fetched and decoded
- * in the background. When the current track's `ended` fires, the next
- * element is ready and .play() starts almost instantly (~tens of ms vs
- * ~1s for cold instantiation).
+ * Plays loops in array order on the first cycle (curated opening
+ * sequence), then random with no immediate repeat.
+ *
+ * Mute is a smooth GainNode ramp instead of a hard flip, so toggling
+ * doesn't click.
  *
  * If LOOPS is empty, the rest of the module no-ops and the music button
- * stays hidden. Engine audio still works either way.
- *
- * Mute state persists across sessions in localStorage.
+ * stays hidden.
  */
 
 const LOOPS = [
@@ -27,89 +27,125 @@ const LOOPS = [
 
 const VOLUME = 0.4;
 const STORAGE_KEY = 'little-rocket:music-muted';
+const PRELOAD_LEAD_S = 0.05; // tiny offset so the very first source starts cleanly
 
-let current = null;     // currently playing HTMLAudioElement
-let next = null;        // pre-loaded HTMLAudioElement waiting to play
-let nextUrl = null;     // the URL we picked for `next` (kept for lastUrl tracking)
+let ctx = null;
+let masterGain = null;
+let buffers = [];
+let loadingPromise = null;
+let lastScheduledEndTime = 0;
+let initialIndex = 0;
+let lastIndex = -1;
 let muted = false;
 let started = false;
-let initialIndex = 0;
-let lastUrl = null;
 
 export function hasMusic() {
   return LOOPS.length > 0;
-}
-
-export function startMusic() {
-  if (started || !hasMusic()) return;
-  started = true;
-  muted = localStorage.getItem(STORAGE_KEY) === '1';
-
-  const url = pickNextUrl();
-  lastUrl = url;
-  current = createAudio(url);
-  current.addEventListener('ended', advance, { once: true });
-  current.play().catch((err) => console.warn('Music could not start:', url, err));
-
-  prefetchNext();
-}
-
-export function toggleMusic() {
-  muted = !muted;
-  try { localStorage.setItem(STORAGE_KEY, muted ? '1' : '0'); } catch { /* private mode */ }
-  const v = muted ? 0 : VOLUME;
-  if (current) current.volume = v;
-  if (next)    next.volume = v;
-  return muted;
 }
 
 export function isMuted() {
   return muted;
 }
 
-function pickNextUrl() {
-  // First pass: deterministic order so the curated sequence plays once.
-  if (initialIndex < LOOPS.length) return LOOPS[initialIndex++];
-  // Subsequent passes: random with no immediate repeat.
-  if (LOOPS.length === 1) return LOOPS[0];
-  let url;
-  do { url = LOOPS[Math.floor(Math.random() * LOOPS.length)]; }
-  while (url === lastUrl);
-  return url;
+/**
+ * Create the AudioContext and kick off file fetch + decode. Must be called
+ * from a user gesture (Start click) since browsers block AudioContext
+ * creation/resume otherwise.
+ */
+export function initMusic() {
+  if (!hasMusic() || ctx) return;
+  const Ctor = window.AudioContext || window.webkitAudioContext;
+  if (!Ctor) return;
+  ctx = new Ctor();
+  masterGain = ctx.createGain();
+  muted = (() => {
+    try { return localStorage.getItem(STORAGE_KEY) === '1'; } catch { return false; }
+  })();
+  masterGain.gain.value = muted ? 0 : VOLUME;
+  masterGain.connect(ctx.destination);
+  loadingPromise = loadAll();
+  document.addEventListener('visibilitychange', onVisibilityChange);
 }
 
-function createAudio(url) {
-  const audio = new Audio(url);
-  audio.preload = 'auto';
-  audio.volume = muted ? 0 : VOLUME;
-  // Trigger eager fetch + decode. Browser may already do this but be explicit.
-  audio.load();
-  return audio;
-}
+/**
+ * Begin playback. Safe to call before loading completes — awaits internally.
+ * Called from main.js once the cinematic intro hands over control.
+ */
+export async function startMusic() {
+  if (started || !hasMusic() || !ctx) return;
+  started = true;
 
-function prefetchNext() {
-  nextUrl = pickNextUrl();
-  next = createAudio(nextUrl);
-}
-
-function advance() {
-  if (next) {
-    // Promote the pre-loaded element. By now the file is fetched and
-    // decoded (we had the entire current loop's duration to load it),
-    // so .play() starts almost immediately.
-    lastUrl = nextUrl;
-    current = next;
-    next = null;
-    nextUrl = null;
-    current.addEventListener('ended', advance, { once: true });
-    current.play().catch((err) => console.warn('Music advance failed:', err));
-  } else {
-    // Fallback: prefetch hadn't completed (network glitch, fast end).
-    const url = pickNextUrl();
-    lastUrl = url;
-    current = createAudio(url);
-    current.addEventListener('ended', advance, { once: true });
-    current.play().catch((err) => console.warn('Music cold start failed:', err));
+  if (ctx.state === 'suspended') {
+    try { await ctx.resume(); } catch { /* ignore */ }
   }
-  prefetchNext();
+
+  if (loadingPromise) {
+    try { await loadingPromise; } catch { /* loadAll already logged */ }
+  }
+  if (buffers.length === 0) return;
+
+  // Schedule the first two so there's always one queued ahead of the playhead.
+  lastScheduledEndTime = ctx.currentTime + PRELOAD_LEAD_S;
+  scheduleNext();
+  scheduleNext();
+}
+
+export function toggleMusic() {
+  muted = !muted;
+  try { localStorage.setItem(STORAGE_KEY, muted ? '1' : '0'); } catch { /* private mode */ }
+  if (masterGain) {
+    // Short ramp avoids the click of an instant gain change.
+    const target = muted ? 0 : VOLUME;
+    masterGain.gain.setTargetAtTime(target, ctx.currentTime, 0.02);
+  }
+  return muted;
+}
+
+async function loadAll() {
+  try {
+    buffers = await Promise.all(LOOPS.map(async (url) => {
+      const response = await fetch(url);
+      if (!response.ok) throw new Error(`${url}: HTTP ${response.status}`);
+      const arrayBuffer = await response.arrayBuffer();
+      return await ctx.decodeAudioData(arrayBuffer);
+    }));
+  } catch (err) {
+    console.warn('Music load failed:', err);
+    buffers = [];
+  }
+}
+
+function pickNextIndex() {
+  // First pass: deterministic order so the curated sequence plays once.
+  if (initialIndex < LOOPS.length) return initialIndex++;
+  // Subsequent passes: random with no immediate repeat.
+  if (LOOPS.length === 1) return 0;
+  let idx;
+  do { idx = Math.floor(Math.random() * LOOPS.length); }
+  while (idx === lastIndex);
+  return idx;
+}
+
+function scheduleNext() {
+  if (buffers.length === 0) return;
+  const idx = pickNextIndex();
+  lastIndex = idx;
+  const buffer = buffers[idx];
+
+  const source = ctx.createBufferSource();
+  source.buffer = buffer;
+  source.connect(masterGain);
+  source.start(lastScheduledEndTime);
+
+  // When this source finishes playing, schedule one more to keep the
+  // chain one buffer ahead of the playhead.
+  source.onended = scheduleNext;
+
+  lastScheduledEndTime += buffer.duration;
+}
+
+function onVisibilityChange() {
+  if (!ctx) return;
+  if (document.hidden) ctx.suspend();
+  else ctx.resume();
 }

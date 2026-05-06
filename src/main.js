@@ -27,7 +27,7 @@ import { createControls } from './controls.js';
 import { initAudio, setEngineLevel, suspendAudio } from './audio.js';
 import { createExhaust } from './exhaust.js';
 import { prefersReducedMotion } from './motion.js';
-import { startMusic, toggleMusic, isMuted, hasMusic } from './music.js';
+import { initMusic, startMusic, toggleMusic, isMuted, hasMusic } from './music.js';
 import { startStory } from './story.js';
 import { trackOnce, trackEvent } from './analytics.js';
 
@@ -50,9 +50,11 @@ const INTRO_CAM_DISTANCE = 60;  // how far back the camera starts behind the roc
 function start() {
   document.getElementById('start').hidden = true;
   document.getElementById('intro-overlay').hidden = false;
-  // Audio context must be created from a user gesture, so we init it here
-  // rather than at module load.
+  // Audio contexts must be created from a user gesture. Engine and music
+  // are created here; music also kicks off file fetch + decode so the
+  // buffers are ready by the time the cinematic intro hands over control.
   initAudio();
+  initMusic();
   trackOnce('game-started');
   run();
 }
