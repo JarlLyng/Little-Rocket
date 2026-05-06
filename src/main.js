@@ -30,6 +30,7 @@ import { prefersReducedMotion } from './motion.js';
 import { initMusic, startMusic, toggleMusic, isMuted, hasMusic } from './music.js';
 import { startStory } from './story.js';
 import { trackOnce, trackEvent } from './analytics.js';
+import { fetchTotalDistance, reportSessionDistance } from './stats.js';
 
 const ROT_SPEED = 0.02;        // radians per 60fps-frame
 const ACCEL     = 0.05;        // speed delta per 60fps-frame
@@ -39,6 +40,18 @@ const FOV_MAX   = 110;         // FOV at full throttle — sells velocity
 
 const startBtn = document.getElementById('start-btn');
 startBtn.addEventListener('click', start, { once: true });
+
+// Show the collective-distance line on the start screen as soon as the API
+// resolves. Failure is silent — the game still works without it.
+fetchTotalDistance().then((stats) => {
+  if (!stats || stats.total < 1) return;
+  const el = document.getElementById('collective-stat');
+  el.innerHTML = `Before you, <strong>${stats.total.toLocaleString()}</strong> AU have been flown.`;
+  el.hidden = false;
+  // Force reflow so the opacity transition runs
+  void el.offsetWidth;
+  el.classList.add('visible');
+});
 
 const HINT_VISIBLE_MS = 6000;
 const HINT_FADE_MS = 400; // matches --ij-duration-slow in CSS
@@ -174,6 +187,12 @@ function run() {
   document.addEventListener('visibilitychange', () => {
     if (document.hidden) suspendAudio();
     else initAudio(); // resumes if already created
+  });
+
+  // Contribute this session's distance to the collective total when the
+  // page is on its way out. sendBeacon survives the teardown.
+  window.addEventListener('pagehide', () => {
+    reportSessionDistance(distanceAU);
   });
 
   function frame() {

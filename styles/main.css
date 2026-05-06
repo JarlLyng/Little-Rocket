@@ -93,6 +93,28 @@ h1 {
   }
 }
 
+/* Collective distance line — visually subordinate to the intro text but
+   in the same italic narrative voice. Hidden until the API resolves. */
+.intro-stat {
+  margin: 0;
+  max-width: 480px;
+  padding: 0 var(--ij-spacing-md, 12px);
+  font-style: italic;
+  font-size: var(--ij-font-size-base, 16px);
+  line-height: var(--ij-line-height-relaxed, 28px);
+  color: var(--ij-color-text-tertiary, rgba(255, 255, 255, 0.6));
+  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.7);
+  letter-spacing: 0.2px;
+  opacity: 0;
+  transition: opacity 600ms var(--ij-easing-standard);
+}
+.intro-stat[hidden] { display: none; }
+.intro-stat.visible { opacity: 1; }
+.intro-stat strong {
+  color: var(--ij-color-text-secondary, rgba(255, 255, 255, 0.78));
+  font-weight: var(--ij-font-weight-semibold, 600);
+}
+
 .btn-primary {
   appearance: none;
   border: 0;
