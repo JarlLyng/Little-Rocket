@@ -8,11 +8,21 @@
  * exponentially so a long flight always has a next thing to chase.
  */
 
+// Exponential progression so a long flight always has a next thing to chase.
+// AU values use real astronomical references where possible; 63,241 is the
+// exact AU-per-light-year conversion. Outer planet distances are rounded
+// to the nearest semi-major axis.
 export const MILESTONES = [
+  { au: 5,       label: 'Past Jupiter' },
+  { au: 10,      label: 'Past Saturn' },
+  { au: 19,      label: 'Past Uranus' },
+  { au: 30,      label: 'Past Neptune' },
   { au: 100,     label: 'Past Pluto' },
-  { au: 1000,    label: 'Through the heliosphere' },
-  { au: 10000,   label: 'Into the Oort cloud' },
-  { au: 100000,  label: 'One light-year out' },
+  { au: 250,     label: 'Past the heliopause' },
+  { au: 1000,    label: 'Inner Oort cloud' },
+  { au: 10000,   label: 'Deep Oort cloud' },
+  { au: 63241,   label: 'One light-year' },
+  { au: 270000,  label: 'Approaching Proxima Centauri' },
 ];
 
 const fired = new Set();
