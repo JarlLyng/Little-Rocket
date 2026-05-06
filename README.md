@@ -197,6 +197,7 @@ Two important conventions:
 | `motion.js` | `prefers-reduced-motion` matchMedia gate, live-updates | `prefersReducedMotion` |
 | `analytics.js` | Thin wrapper over Umami, with once-per-session helper | `trackEvent`, `trackOnce` |
 | `stats.js` | Collective-distance API client (Turso-backed via /api/distance) | `fetchTotalDistance`, `reportSessionDistance` |
+| `milestones.js` | Distance threshold table + once-per-session edge detection | `MILESTONES`, `checkMilestone` |
 
 ---
 
@@ -323,6 +324,7 @@ Tracked events:
 | `max-speed` | First time speed reaches MAX_SPEED, once per session | `{ distance }` |
 | `first-near-miss` | First NEAR MISS trigger, once per session | `{ distance }` |
 | `music-mute` / `music-unmute` | Each click on the ♪ button | – |
+| `milestone-reached` | Each time the rocket crosses a new distance threshold | `{ au }` |
 
 Distances are integer AU. Nothing user-identifying is sent. Remove the Umami script tag (or fork without it) if you'd rather not be counted.
 
