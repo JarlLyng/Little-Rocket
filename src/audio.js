@@ -53,7 +53,7 @@ export function initAudio() {
   sub.connect(droneGain);
 
   masterGain = ctx.createGain();
-  masterGain.gain.value = 0.35;
+  masterGain.gain.value = 0.22;
 
   engineGain.connect(masterGain);
   droneGain.connect(masterGain);

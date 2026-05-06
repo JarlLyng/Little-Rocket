@@ -2,11 +2,16 @@
 
 [![Co-created with AI](https://madebyhuman.iamjarl.com/badges/co-created-white.svg)](https://madebyhuman.iamjarl.com)
 
-A tiny browser game where you fly a rocket through an endless field of procedurally placed planets. Built with [Three.js](https://threejs.org/) — no build step, no dependencies to install.
+> *A small ship in the long dark.*
+> *The engines hum, and somewhere ahead, a star you have not named is waiting.*
 
 ![Little Rocket](og-image.png)
 
-**Play it:** [littlerocket.iamjarl.com](https://littlerocket.iamjarl.com/) — desktop or laptop, keyboard required.
+A tiny browser game about flying nowhere in particular. Pull the throttle and drift past procedurally placed planets — some with rings, some with moons. Engines spool up. Stars streak past at speed. A slow, melancholy story unfolds one sentence at a time across the bottom of your screen. There is no score, no fail state, no destination. Just the long dark, and you in it.
+
+Built with [Three.js](https://threejs.org/). No build step, no dependencies to install — every file in the repo is served as-is by GitHub Pages.
+
+**Play it:** [littlerocket.iamjarl.com](https://littlerocket.iamjarl.com/) · keyboard on desktop, drag-to-fly on phone and tablet.
 
 ---
 
