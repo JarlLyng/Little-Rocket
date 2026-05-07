@@ -10,12 +10,13 @@
 
 // Exponential progression so a long flight always has a next thing to chase.
 // AU values use real astronomical references where possible; 63,241 is the
-// exact AU-per-light-year conversion. Outer planet distances are rounded
-// to the nearest semi-major axis.
+// exact AU-per-light-year conversion.
+//
+// We deliberately skip Jupiter / Saturn / Uranus — at typical throttle the
+// rocket clears all three within the first 5 seconds of flight, which felt
+// like notification spam rather than landmarks. Neptune is the first reward
+// (~10s in) and Pluto follows a comfortable gap later.
 export const MILESTONES = [
-  { au: 5,       label: 'Past Jupiter' },
-  { au: 10,      label: 'Past Saturn' },
-  { au: 19,      label: 'Past Uranus' },
   { au: 30,      label: 'Past Neptune' },
   { au: 100,     label: 'Past Pluto' },
   { au: 250,     label: 'Past the heliopause' },
