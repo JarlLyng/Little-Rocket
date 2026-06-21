@@ -42,12 +42,17 @@ Built with [Three.js](https://threejs.org/). No build step, no client dependenci
 | Q / E | Roll |
 | W / S | Throttle up / down |
 | Mouse | Look around |
+| N | Name a world that has drifted close |
 | ? button | Show controls hint |
 | ♪ button | Toggle music *(visible only if loops are configured)* |
 
-**Touch (phone, tablet):** drag the **left half** of the screen to steer (virtual joystick that re-centers on release), drag the **right half** vertically to set throttle (sticky — keeps the position when you let go). A vertical bar on the right edge mirrors your current speed.
+**Touch (phone, tablet):** drag the **left half** of the screen to steer (virtual joystick that re-centers on release), drag the **right half** vertically to set throttle (sticky — keeps the position when you let go). A vertical bar on the right edge mirrors your current speed. When a world drifts close, a **Name this world** button appears at the bottom.
 
 The HUD shows speed and distance traveled (in AU). A subtle **NEAR MISS** flash fires when you pass within 2.2× a planet's radius.
+
+### Naming worlds
+
+When a planet drifts close, a cue invites you to name it. The name you give pins to that world and is let loose into a shared pool (`/api/names`). Because the planet field is procedural and ephemeral, names don't belong to any one world — other drifters' clients pull a random sample and occasionally pin one to a world passing *them*. So you'll sometimes drift past a world already bearing a stranger's name. Your own names glow in the accent colour; strangers' are quiet and white. *"It will not remember."* Naming is pure atmosphere — it degrades silently when the API is unreachable, and the game plays identically offline.
 
 ---
 
@@ -115,7 +120,7 @@ src/
   main.js                    Game loop, intro, input wiring, scene orchestration
   scene.js                   Scene, lights, suns, starfields, nebulae, sky gradient
   rocket.js                  Rocket mesh + engine glow; reads --ij-color-primary
-  planets.js                 Procedural planets, rings, moons, near-miss detection
+  planets.js                 Procedural planets, rings, moons, near-miss + naming/labels
   asteroids.js               Pool-shared low-poly asteroid clusters
   textures.js                Multi-octave value-noise bump + color textures
   exhaust.js                 Particle trail behind the rocket
@@ -126,10 +131,15 @@ src/
   motion.js                  prefers-reduced-motion gate
   analytics.js               Umami event wrapper
   stats.js                   Collective-distance API client
+  names.js                   Collective planet-names API client
+  milestones.js              Distance-threshold milestone toasts
 
 api/
-  distance.js                Vercel serverless function (Turso-backed)
+  distance.js                Vercel serverless function — collective distance (Turso)
+  names.js                   Vercel serverless function — collective planet names (Turso)
 package.json                 Dependencies for the API only
+
+sw.js                        Service worker — offline cache + installable PWA
 
 audio/                       Music loops (AAC/M4A) — see audio/README.md
 
@@ -311,16 +321,26 @@ CREATE TABLE totals (
 );
 
 -- Ephemeral per-IP rate-limit keys (hashed IP + timestamp), pruned each
--- request — no durable IP storage.
+-- request — no durable IP storage. Shared by both API functions.
 CREATE TABLE rate_limit (
   ip_hash TEXT NOT NULL,
   ts INTEGER NOT NULL DEFAULT (unixepoch())
 );
+
+-- Collective planet names (created lazily by api/names.js). Names drift free
+-- of any one planet; clients pull a random sample to sprinkle onto passing
+-- worlds. created_at lets names be hand-moderated if ever needed.
+CREATE TABLE planet_names (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  name TEXT NOT NULL,
+  created_at INTEGER NOT NULL DEFAULT (unixepoch())
+);
 ```
 
-A POST inserts into `sessions` and bumps `totals` atomically. To extend with
-new per-session columns: `ALTER TABLE sessions ADD COLUMN max_speed REAL` and
-similar — SQLite handles it without a migration tool.
+A distance POST inserts into `sessions` and bumps `totals` atomically. A name
+POST inserts into `planet_names`. To extend with new per-session columns:
+`ALTER TABLE sessions ADD COLUMN max_speed REAL` and similar — SQLite handles it
+without a migration tool.
 
 ### Abuse limits
 
@@ -364,6 +384,8 @@ Tracked events:
 | `first-near-miss` | First NEAR MISS trigger, once per session | `{ distance }` |
 | `music-mute` / `music-unmute` | Each click on the ♪ button | – |
 | `milestone-reached` | Each time the rocket crosses a new distance threshold | `{ au }` |
+| `planet-named` | Each time you name a world | – |
+| `stranger-world-seen` | First time you encounter a world bearing a stranger's name, once per session | – |
 
 Distances are integer AU. Nothing user-identifying is sent. Remove the Umami script tag (or fork without it) if you'd rather not be counted.
 

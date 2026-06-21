@@ -118,6 +118,21 @@
     <div id="throttle-fill"></div>
   </div>
 
+  <!-- Floating names pinned to passing worlds (yours + strangers'). -->
+  <div id="planet-labels" aria-hidden="true"></div>
+
+  <!-- Cue + dialog for naming a world that has drifted close. -->
+  <button id="name-cue" type="button" hidden></button>
+  <div id="name-dialog" hidden>
+    <form id="name-form">
+      <label id="name-dialog-label" for="name-input">Name this world</label>
+      <input id="name-input" type="text" maxlength="24" autocomplete="off"
+             autocapitalize="words" autocorrect="off" spellcheck="false"
+             aria-describedby="name-dialog-hint">
+      <p id="name-dialog-hint" class="name-dialog-hint">Enter to name it · Esc to let it pass</p>
+    </form>
+  </div>
+
   <div id="story" hidden></div>
 
   <script type="module" src="src/main.js"></script>

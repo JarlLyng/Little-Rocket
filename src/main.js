@@ -32,6 +32,7 @@ import { startStory } from './story.js';
 import { trackOnce, trackEvent } from './analytics.js';
 import { fetchTotalDistance, reportSessionDistance } from './stats.js';
 import { checkMilestone } from './milestones.js';
+import { fetchStrangerNames, submitName, MAX_NAME_LEN } from './names.js';
 
 // Register the service worker so the game is installable and works offline.
 // Failure is silent — it's a progressive enhancement, never a hard dependency.
@@ -147,7 +148,13 @@ function run() {
   rocketGroup.add(rocket);
   scene.add(rocketGroup);
 
-  const planets = createPlanetField(scene, rocketGroup);
+  const labelLayer = document.getElementById('planet-labels');
+  const planets = createPlanetField(scene, rocketGroup, camera, labelLayer);
+  planets.setOnStranger(() => trackOnce('stranger-world-seen'));
+  // Pull the names other drifters left so we can sprinkle them onto passing
+  // worlds. Failure is silent — local naming still works without strangers.
+  fetchStrangerNames().then((names) => planets.setStrangerPool(names));
+
   const asteroids = createAsteroidField(scene, rocketGroup);
   const exhaust = createExhaust();
   scene.add(exhaust.object);
@@ -199,6 +206,50 @@ function run() {
     }, MILESTONE_VISIBLE_MS);
     trackEvent('milestone-reached', { au: milestone.au });
   }
+  // --- Collective planet naming ---
+  // A cue appears when a world drifts close; pressing N (or tapping the cue)
+  // opens a small dialog. The name you give is pinned to that world and let
+  // loose into the shared pool for other drifters to encounter.
+  const nameCue = document.getElementById('name-cue');
+  const nameDialog = document.getElementById('name-dialog');
+  const nameForm = document.getElementById('name-form');
+  const nameInput = document.getElementById('name-input');
+  let nameDialogOpen = false;
+  nameCue.textContent = isTouch ? 'Name this world' : 'Name this world · N';
+
+  function openNameDialog() {
+    if (nameDialogOpen || !planets.hasNameable()) return;
+    nameDialogOpen = true;
+    nameDialog.hidden = false;
+    nameCue.hidden = true;
+    nameInput.value = '';
+    nameInput.focus();
+  }
+  function closeNameDialog() {
+    nameDialogOpen = false;
+    nameDialog.hidden = true;
+    nameInput.blur();
+  }
+  function setupNaming() {
+    nameCue.addEventListener('click', openNameDialog);
+    nameForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const named = planets.nameNearest(nameInput.value.trim().slice(0, MAX_NAME_LEN));
+      if (named) { submitName(named); trackEvent('planet-named'); }
+      closeNameDialog();
+    });
+    nameInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') { e.preventDefault(); closeNameDialog(); }
+    });
+    window.addEventListener('keydown', (e) => {
+      if (e.code === 'KeyN' && !nameDialogOpen && introDone
+          && e.target.tagName !== 'INPUT' && planets.hasNameable()) {
+        e.preventDefault();
+        openNameDialog();
+      }
+    });
+  }
+
   const clock = new THREE.Clock();
   const forward = new THREE.Vector3();
   const camOffset = new THREE.Vector3();
@@ -252,6 +303,7 @@ function run() {
         if (isTouch) document.getElementById('throttle-bar').hidden = false;
         setupHint();
         setupMusicButton();
+        setupNaming();
         startMusic();
         startStory();
       }
@@ -350,6 +402,11 @@ function run() {
     camera.up.set(0, 1, 0).applyQuaternion(rocketGroup.quaternion);
 
     planets.update(forward, dt, flashNearMiss);
+    // Show/hide the naming cue based on whether a world is within reach.
+    if (introDone && !nameDialogOpen) {
+      const has = planets.hasNameable();
+      if (has === nameCue.hidden) nameCue.hidden = !has;
+    }
     asteroids.update(forward, dt);
     // Star streaks read as motion; suppressed under reduced-motion AND during intro.
     const streakSpeed = (introDone && !reducedMotion) ? speed : 0;

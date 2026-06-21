@@ -14,8 +14,11 @@
 import * as THREE from 'three';
 import { getPlanetBumpTexture, getPlanetColorMap } from './textures.js';
 
-// Scratch vector reused inside the per-frame loop to avoid Vector3 churn.
+// Scratch vectors reused inside the per-frame loop to avoid Vector3 churn.
 const _scratch = new THREE.Vector3();
+const _camFwd = new THREE.Vector3();
+const _camDir = new THREE.Vector3();
+const _proj = new THREE.Vector3();
 
 const COLORS = [0xff6644, 0x44aaff, 0xffaa44, 0x88ff88, 0xaa66ff, 0xffdd66, 0xff88aa];
 const TARGET_COUNT = 40;
@@ -23,10 +26,30 @@ const RING_CHANCE = 0.25;
 const ONE_MOON_CHANCE = 0.30;
 const TWO_MOON_CHANCE = 0.05; // additional chance on top of one-moon
 
-export function createPlanetField(scene, anchor) {
+// Naming: a world becomes nameable once it drifts within this multiple of its
+// radius, and stays nameable until it recycles — so you get the whole pass to
+// decide, not a split-second window. Labels fade out past LABEL_FADE_FAR.
+const NAMEABLE_RANGE_MULT = 8;
+const STRANGER_CHANCE = 0.12; // chance a freshly-spawned world already bears a stranger's name
+const LABEL_FADE_NEAR = 40;   // full opacity within this distance
+const LABEL_FADE_FAR = 700;   // fully faded beyond this
+
+/**
+ * @param scene       THREE.Scene
+ * @param anchor      the rocket group (planets spawn relative to it)
+ * @param camera      used to project name labels to screen space (optional)
+ * @param labelLayer  a DOM element that holds the floating name labels (optional)
+ */
+export function createPlanetField(scene, anchor, camera = null, labelLayer = null) {
   const planets = [];
   const bumpMap = getPlanetBumpTexture();
   const colorMap = getPlanetColorMap();
+
+  // Names other players have left, sprinkled onto passing worlds. Empty until
+  // the API resolves (and stays empty offline) — naming still works locally.
+  let strangerPool = [];
+  let onStranger = null;       // fired once when a stranger-named world first appears
+  let currentNameable = null;  // nearest world the player could name right now
 
   function makeMoon(planetRadius) {
     const moonRadius = planetRadius * (0.18 + Math.random() * 0.22);
@@ -110,6 +133,18 @@ export function createPlanetField(scene, anchor) {
     group.userData.moons = moons;
     group.userData.radius = r;
     group.userData.wasNear = false;
+    group.userData.name = null;      // set when named (by you or a stranger)
+    group.userData.stranger = false; // true if the name came from the shared pool
+    group.userData.nameable = false; // true once you've drifted close enough to name it
+    group.userData.labelEl = null;   // floating DOM label, created lazily when named
+
+    // Worlds spawned ahead occasionally already carry a name a stranger let
+    // loose. The initial field spawns before the pool loads, so the opening
+    // never floods you with names — they appear as you fly on.
+    if (!initial && strangerPool.length && Math.random() < STRANGER_CHANCE) {
+      group.userData.name = strangerPool[Math.floor(Math.random() * strangerPool.length)];
+      group.userData.stranger = true;
+    }
 
     const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(anchor.quaternion);
     const right   = new THREE.Vector3(1, 0,  0).applyQuaternion(anchor.quaternion);
@@ -128,7 +163,52 @@ export function createPlanetField(scene, anchor) {
 
   for (let i = 0; i < TARGET_COUNT; i++) spawn(true);
 
+  // Create the floating DOM label for a planet the first time it's named.
+  function makeLabel(p) {
+    if (!labelLayer || p.userData.labelEl) return;
+    const el = document.createElement('div');
+    el.className = `planet-label ${p.userData.stranger ? 'stranger' : 'mine'}`;
+    el.textContent = p.userData.stranger ? `"${p.userData.name}"` : p.userData.name;
+    el.style.opacity = '0';
+    labelLayer.appendChild(el);
+    p.userData.labelEl = el;
+  }
+
+  function removeLabel(p) {
+    if (p.userData.labelEl) {
+      p.userData.labelEl.remove();
+      p.userData.labelEl = null;
+    }
+  }
+
+  // Project a named planet to screen space and position/fade its label. Labels
+  // behind the camera or off-screen are hidden; the rest fade with distance so
+  // they read as faint, drifting things rather than UI.
+  function positionLabel(p, planetDist) {
+    const el = p.userData.labelEl;
+    if (!el) return;
+    if (_camDir.subVectors(p.position, camera.position).dot(_camFwd) <= 0) {
+      el.style.opacity = '0';
+      return;
+    }
+    _proj.copy(p.position).project(camera);
+    if (_proj.x < -1.1 || _proj.x > 1.1 || _proj.y < -1.1 || _proj.y > 1.1) {
+      el.style.opacity = '0';
+      return;
+    }
+    const w = window.innerWidth, h = window.innerHeight;
+    const x = (_proj.x * 0.5 + 0.5) * w;
+    const y = (-_proj.y * 0.5 + 0.5) * h;
+    const fade = 1 - Math.min(1, Math.max(0, (planetDist - LABEL_FADE_NEAR) / (LABEL_FADE_FAR - LABEL_FADE_NEAR)));
+    el.style.transform = `translate(${x}px, ${y}px) translate(-50%, -160%)`;
+    el.style.opacity = String(fade * (p.userData.stranger ? 0.7 : 0.95));
+  }
+
   function update(forward, dt, onNearMiss) {
+    if (camera) _camFwd.set(0, 0, -1).applyQuaternion(camera.quaternion);
+    currentNameable = null;
+    let nearestNameableDist = Infinity;
+
     for (let i = planets.length - 1; i >= 0; i--) {
       const p = planets[i];
       p.userData.body.rotation.y += p.userData.body.userData.spinSpeed * dt;
@@ -152,7 +232,24 @@ export function createPlanetField(scene, anchor) {
       if (isNear && !p.userData.wasNear && onNearMiss) onNearMiss();
       p.userData.wasNear = isNear;
 
+      // A stranger's world announces itself the first time it comes close.
+      if (p.userData.stranger && !p.userData.seen && planetDist < LABEL_FADE_FAR) {
+        p.userData.seen = true;
+        makeLabel(p);
+        if (onStranger) onStranger(p.userData.name);
+      }
+
+      // Track the nearest un-named world within reach as the naming target.
+      if (planetDist < p.userData.radius * NAMEABLE_RANGE_MULT) p.userData.nameable = true;
+      if (p.userData.nameable && !p.userData.name && planetDist < nearestNameableDist) {
+        nearestNameableDist = planetDist;
+        currentNameable = p;
+      }
+
+      if (p.userData.labelEl) positionLabel(p, planetDist);
+
       if (toPlanet.dot(forward) < -200 || planetDist > 2500) {
+        removeLabel(p);
         scene.remove(p);
         p.traverse((obj) => {
           if (obj.isMesh) {
@@ -167,5 +264,21 @@ export function createPlanetField(scene, anchor) {
     while (planets.length < TARGET_COUNT) spawn();
   }
 
-  return { update };
+  return {
+    update,
+    setStrangerPool(names) { strangerPool = Array.isArray(names) ? names : []; },
+    setOnStranger(cb) { onStranger = cb; },
+    // True when there's a world close enough to name right now.
+    hasNameable() { return currentNameable !== null; },
+    // Name the nearest reachable world. Returns the name on success, else null.
+    nameNearest(name) {
+      const p = currentNameable;
+      if (!p || p.userData.name) return null;
+      p.userData.name = name;
+      p.userData.stranger = false;
+      makeLabel(p);
+      currentNameable = null;
+      return name;
+    },
+  };
 }

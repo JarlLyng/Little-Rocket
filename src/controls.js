@@ -29,8 +29,11 @@ export function createControls() {
 
   const pointers = new Map();
 
-  const onKeyDown = (e) => { keys[e.code] = true; };
-  const onKeyUp   = (e) => { keys[e.code] = false; };
+  // Don't let steering keys fire while the player is typing (e.g. naming a
+  // world) — otherwise WASD would both type and fly the rocket.
+  const isTyping = (e) => e.target && e.target.tagName === 'INPUT';
+  const onKeyDown = (e) => { if (!isTyping(e)) keys[e.code] = true; };
+  const onKeyUp   = (e) => { if (!isTyping(e)) keys[e.code] = false; };
   const onMouseMove = (e) => {
     mouse.x = (e.clientX / window.innerWidth - 0.5) * 2;
     mouse.y = (e.clientY / window.innerHeight - 0.5) * 2;
