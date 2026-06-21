@@ -14,7 +14,7 @@
  * step deletes every older cache so clients don't get a stale shell.
  */
 
-const CACHE = 'little-rocket-v2';
+const CACHE = 'little-rocket-v3';
 
 const PRECACHE = [
   '/',

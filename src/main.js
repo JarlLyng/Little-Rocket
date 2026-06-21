@@ -27,7 +27,7 @@ import { createControls } from './controls.js';
 import { initAudio, setEngineLevel, suspendAudio } from './audio.js';
 import { createExhaust } from './exhaust.js';
 import { prefersReducedMotion } from './motion.js';
-import { initMusic, startMusic, toggleMusic, isMuted, hasMusic } from './music.js';
+import { initMusic, startMusic, toggleMusic, isMuted, hasMusic, setMusicIntensity, musicSwell } from './music.js';
 import { startStory } from './story.js';
 import { trackOnce, trackEvent } from './analytics.js';
 import { fetchTotalDistance, reportSessionDistance } from './stats.js';
@@ -175,6 +175,7 @@ function run() {
   let introDone = false;
   let nearMissTimer = null;
   function flashNearMiss() {
+    musicSwell(); // lift the score in time with the flash
     nearMissEl.hidden = false;
     void nearMissEl.offsetWidth;
     nearMissEl.classList.add('visible');
@@ -350,6 +351,8 @@ function run() {
     const presentationSpeed = speed * introEase;
     updateGlow(rocket, presentationSpeed);
     setEngineLevel(presentationSpeed, MAX_SPEED);
+    // Music brightness tracks throttle: muffled at rest, open at full speed.
+    setMusicIntensity(presentationSpeed / MAX_SPEED);
 
     // FOV: during intro, lerp from narrow → idle. After, speed-based punch.
     const reducedMotion = prefersReducedMotion();

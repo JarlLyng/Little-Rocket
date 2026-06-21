@@ -125,7 +125,7 @@ src/
   textures.js                Multi-octave value-noise bump + color textures
   exhaust.js                 Particle trail behind the rocket
   audio.js                   Procedural engine sound (Web Audio API)
-  music.js                   Background music loop player (random selection)
+  music.js                   Background music player — speed-driven lowpass + fly-by swell
   story.js                   Slow sci-fi narrative cycle
   controls.js                Keyboard + mouse input bridge
   motion.js                  prefers-reduced-motion gate

@@ -14,6 +14,12 @@
  * Mute is a smooth GainNode ramp instead of a hard flip, so toggling
  * doesn't click.
  *
+ * The music also breathes with the flight. A lowpass filter sits in the
+ * chain: at rest the music is muffled and distant; at full throttle it opens
+ * up bright and present (setMusicIntensity). Passing close to a world fires a
+ * brief swell (musicSwell), so the score lifts at the same moment the NEAR
+ * MISS flash does.
+ *
  * If LOOPS is empty, the rest of the module no-ops and the music button
  * stays hidden.
  */
@@ -29,8 +35,17 @@ const VOLUME = 0.4;
 const STORAGE_KEY = 'little-rocket:music-muted';
 const PRELOAD_LEAD_S = 0.05; // tiny offset so the very first source starts cleanly
 
+// Speed-driven brightness: the lowpass cutoff sweeps from "distant" to "open"
+// across the throttle range, on a log scale so the change feels even to the ear.
+const CUTOFF_MIN_HZ = 520;
+const CUTOFF_MAX_HZ = 18000;
+const CUTOFF_SMOOTH = 0.4;   // slow, musical follow — not twitchy with each frame
+const SWELL_PEAK = 1.3;      // colour-gain multiplier at the top of a fly-by swell
+
 let ctx = null;
 let masterGain = null;
+let musicFilter = null;      // lowpass; cutoff tracks speed
+let colorGain = null;        // brief presence swell on close passes
 let buffers = [];
 let firstReady = null;       // resolves when buffers[0] is decoded (or fails)
 let lastScheduledEndTime = 0;
@@ -62,6 +77,18 @@ export function initMusic() {
     try { return localStorage.getItem(STORAGE_KEY) === '1'; } catch { return false; }
   })();
   masterGain.gain.value = muted ? 0 : VOLUME;
+
+  // Chain: source → musicFilter (lowpass, speed-driven) → colorGain (swell)
+  //        → masterGain (volume/mute) → destination.
+  musicFilter = ctx.createBiquadFilter();
+  musicFilter.type = 'lowpass';
+  musicFilter.frequency.value = CUTOFF_MIN_HZ; // start muffled; opens with speed
+  musicFilter.Q.value = 0.0001;                // gentle slope, no resonant peak
+  colorGain = ctx.createGain();
+  colorGain.gain.value = 1;
+
+  musicFilter.connect(colorGain);
+  colorGain.connect(masterGain);
   masterGain.connect(ctx.destination);
   loadAll();
   document.addEventListener('visibilitychange', onVisibilityChange);
@@ -105,6 +132,32 @@ export function toggleMusic() {
     masterGain.gain.setTargetAtTime(target, ctx.currentTime, 0.02);
   }
   return muted;
+}
+
+/**
+ * Open or close the music's lowpass filter with throttle. `level` is 0..1
+ * (speed / maxSpeed). Cheap enough to call every frame — the cutoff eases
+ * toward its target so rapid input changes stay musical.
+ */
+export function setMusicIntensity(level) {
+  if (!ctx || !musicFilter) return;
+  const t = Math.min(1, Math.max(0, level));
+  const cutoff = CUTOFF_MIN_HZ * Math.pow(CUTOFF_MAX_HZ / CUTOFF_MIN_HZ, t);
+  musicFilter.frequency.setTargetAtTime(cutoff, ctx.currentTime, CUTOFF_SMOOTH);
+}
+
+/**
+ * A brief swell in presence — fired when the rocket passes close to a world,
+ * so the score lifts in time with the NEAR MISS flash. A quick rise, then a
+ * gentle settle back to neutral. Silent if music is muted (masterGain is 0).
+ */
+export function musicSwell() {
+  if (!ctx || !colorGain) return;
+  const now = ctx.currentTime;
+  colorGain.gain.cancelScheduledValues(now);
+  colorGain.gain.setValueAtTime(colorGain.gain.value, now);
+  colorGain.gain.linearRampToValueAtTime(SWELL_PEAK, now + 0.18);
+  colorGain.gain.setTargetAtTime(1, now + 0.18, 0.5);
 }
 
 function loadAll() {
@@ -166,7 +219,7 @@ function scheduleNext() {
 
   const source = ctx.createBufferSource();
   source.buffer = buffer;
-  source.connect(masterGain);
+  source.connect(musicFilter);
   source.start(startAt);
 
   // When this source finishes playing, schedule one more to keep the
