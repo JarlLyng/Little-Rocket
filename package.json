@@ -2,7 +2,7 @@
   "name": "little-rocket-api",
   "private": true,
   "type": "module",
-  "description": "Vercel functions for Little Rocket. Static site lives at the repo root and is served by GitHub Pages — these are only the serverless endpoints.",
+  "description": "Vercel functions for Little Rocket. The static site lives at the repo root and is served by Vercel as-is — these are only the serverless endpoints.",
   "engines": {
     "node": ">=20"
   },
