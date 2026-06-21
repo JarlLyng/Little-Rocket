@@ -285,22 +285,51 @@ Hosted entirely on [Vercel](https://vercel.com) at the custom domain `littlerock
 2. **Vercel** — create a project pointed at this repo. In **Settings → Environment Variables**, add:
    - `TURSO_DATABASE_URL` (e.g. `libsql://little-rocket-yourorg.turso.io`)
    - `TURSO_AUTH_TOKEN`
+   - `RATE_LIMIT_SALT` *(optional)* — any string; salts the hashed-IP keys the rate limiter stores. A default is used if unset.
 3. **Domain** — add `littlerocket.iamjarl.com` in Vercel → Domains, then point the Namecheap CNAME at the value Vercel shows (typically `cname.vercel-dns.com`). Vercel provisions the Let's Encrypt cert automatically.
 4. Push to `main`. The first call to `/api/distance` lazily creates the schema.
 
 ### Schema
 
-`api/distance.js` lazily creates a single table:
+`api/distance.js` lazily creates three tables on first call:
 
 ```sql
+-- Full flight history (kept for future per-session analytics).
 CREATE TABLE sessions (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   distance_au INTEGER NOT NULL CHECK (distance_au >= 0 AND distance_au <= 1000000),
   created_at INTEGER NOT NULL DEFAULT (unixepoch())
 );
+
+-- Single-row running aggregate, so GET reads one indexed row instead of
+-- scanning all of `sessions` on every start-screen load. Seeded once from
+-- whatever history already exists.
+CREATE TABLE totals (
+  id INTEGER PRIMARY KEY CHECK (id = 1),
+  total_au INTEGER NOT NULL DEFAULT 0,
+  sessions INTEGER NOT NULL DEFAULT 0
+);
+
+-- Ephemeral per-IP rate-limit keys (hashed IP + timestamp), pruned each
+-- request — no durable IP storage.
+CREATE TABLE rate_limit (
+  ip_hash TEXT NOT NULL,
+  ts INTEGER NOT NULL DEFAULT (unixepoch())
+);
 ```
 
-To extend: `ALTER TABLE sessions ADD COLUMN max_speed REAL` and similar — SQLite handles it without a migration tool.
+A POST inserts into `sessions` and bumps `totals` atomically. To extend with
+new per-session columns: `ALTER TABLE sessions ADD COLUMN max_speed REAL` and
+similar — SQLite handles it without a migration tool.
+
+### Abuse limits
+
+The counter is a public, unauthenticated endpoint, so it's bounded rather than
+locked down: a per-session value cap (`MAX_AU_PER_SESSION`), a CORS allowlist so
+only the production origin and localhost can call it from a browser, and a
+per-IP rate limit (`RATE_MAX_POSTS` per `RATE_WINDOW_S`) so a script can't pump
+the total unattended. The client also reports each flight at most once per
+session, so `pagehide`/bfcache can't double-count.
 
 ### Cache headers
 
@@ -308,7 +337,17 @@ To extend: `ALTER TABLE sessions ADD COLUMN max_speed REAL` and similar — SQLi
 
 - `/audio/*.m4a` — `max-age=31536000, immutable` (loops never change for a given filename)
 - `favicon.png`, `og-image.png` — `max-age=86400`
+- `sw.js` — `max-age=0, must-revalidate` so service-worker updates always propagate
 - Everything else uses Vercel's defaults (revalidate per request via ETag)
+
+### Offline / installable
+
+`sw.js` is a service worker that precaches the app shell (HTML, CSS, every JS
+module, the icon) and runtime-caches the Three.js CDN module and audio loops on
+first fetch, so a cold offline load works and the `manifest.json` install
+prompt has something to install. `/api/*` is never intercepted — the collective
+counter always hits the network. Bump the `CACHE` constant in `sw.js` whenever a
+shipped asset changes so old caches are purged on activate.
 
 Hard-refresh with Cmd/Ctrl+Shift+R if you're not seeing a code change locally.
 

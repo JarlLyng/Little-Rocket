@@ -18,7 +18,7 @@ const API_URL = '/api/distance';
 
 export async function fetchTotalDistance() {
   try {
-    const response = await fetch(API_URL, { mode: 'cors' });
+    const response = await fetch(API_URL);
     if (!response.ok) return null;
     const data = await response.json();
     return {
@@ -30,9 +30,17 @@ export async function fetchTotalDistance() {
   }
 }
 
+// `pagehide` can fire more than once (bfcache navigations, tab restore), and
+// some browsers also fire it alongside `visibilitychange`. Guard so a single
+// flight contributes to the collective total at most once — otherwise a player
+// who bounces in and out of the tab inflates the counter for free.
+let reported = false;
+
 export function reportSessionDistance(au) {
+  if (reported) return;
   const value = Math.floor(Number(au));
   if (!Number.isFinite(value) || value < 1) return;
+  reported = true;
 
   // sendBeacon with text/plain avoids a CORS preflight on pagehide where
   // we have very little time before the browser tears the page down.
