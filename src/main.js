@@ -33,6 +33,14 @@ import { trackOnce, trackEvent } from './analytics.js';
 import { fetchTotalDistance, reportSessionDistance } from './stats.js';
 import { checkMilestone } from './milestones.js';
 
+// Register the service worker so the game is installable and works offline.
+// Failure is silent — it's a progressive enhancement, never a hard dependency.
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch(() => { /* offline support is optional */ });
+  });
+}
+
 const ROT_SPEED = 0.02;        // radians per 60fps-frame
 const ACCEL     = 0.05;        // speed delta per 60fps-frame
 const MAX_SPEED = 5;

@@ -21,7 +21,7 @@ jobs:
       - name: Check JavaScript syntax
         run: |
           set -e
-          for f in src/*.js api/*.js; do
+          for f in src/*.js api/*.js sw.js; do
             node --check "$f"
           done
 
@@ -33,6 +33,7 @@ jobs:
             og-image.png
             index.html
             manifest.json
+            sw.js
             styles/main.css
             vendor/iamjarl-tokens.css
             vercel.json
