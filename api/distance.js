@@ -72,12 +72,23 @@ async function ensureSchema() {
     CREATE TABLE IF NOT EXISTS totals (
       id INTEGER PRIMARY KEY CHECK (id = 1),
       total_au INTEGER NOT NULL DEFAULT 0,
-      sessions INTEGER NOT NULL DEFAULT 0
+      sessions INTEGER NOT NULL DEFAULT 0,
+      farthest_au INTEGER NOT NULL DEFAULT 0
     )
   `);
+  // Older deployments created `totals` without farthest_au — add it in place
+  // and backfill from the session history. Errors mean the column exists.
+  try {
+    await c.execute(`ALTER TABLE totals ADD COLUMN farthest_au INTEGER NOT NULL DEFAULT 0`);
+    await c.execute(`
+      UPDATE totals
+      SET farthest_au = (SELECT COALESCE(MAX(distance_au), 0) FROM sessions)
+      WHERE id = 1
+    `);
+  } catch { /* column already present */ }
   await c.execute(`
-    INSERT OR IGNORE INTO totals (id, total_au, sessions)
-    SELECT 1, COALESCE(SUM(distance_au), 0), COUNT(*) FROM sessions
+    INSERT OR IGNORE INTO totals (id, total_au, sessions, farthest_au)
+    SELECT 1, COALESCE(SUM(distance_au), 0), COUNT(*), COALESCE(MAX(distance_au), 0) FROM sessions
   `);
 
   // Ephemeral rate-limit keys: hashed IP + timestamp, pruned each request.
@@ -156,11 +167,12 @@ export default async function handler(req, res) {
     const c = getClient();
 
     if (req.method === 'GET') {
-      const result = await c.execute('SELECT total_au, sessions FROM totals WHERE id = 1');
-      const row = result.rows[0] || { total_au: 0, sessions: 0 };
+      const result = await c.execute('SELECT total_au, sessions, farthest_au FROM totals WHERE id = 1');
+      const row = result.rows[0] || { total_au: 0, sessions: 0, farthest_au: 0 };
       res.status(200).json({
         total_au: Number(row.total_au),
         sessions: Number(row.sessions),
+        farthest_au: Number(row.farthest_au),
       });
       return;
     }
@@ -181,10 +193,11 @@ export default async function handler(req, res) {
         res.status(429).json({ error: 'rate limited' });
         return;
       }
-      // Insert the row and bump the aggregate atomically.
+      // Insert the row and bump the aggregates atomically. farthest_au only
+      // ever grows — a record set once stays set until someone beats it.
       await c.batch([
         { sql: 'INSERT INTO sessions (distance_au) VALUES (?)', args: [au] },
-        { sql: 'UPDATE totals SET total_au = total_au + ?, sessions = sessions + 1 WHERE id = 1', args: [au] },
+        { sql: 'UPDATE totals SET total_au = total_au + ?, sessions = sessions + 1, farthest_au = MAX(farthest_au, ?) WHERE id = 1', args: [au, au] },
       ], 'write');
       const result = await c.execute('SELECT total_au FROM totals WHERE id = 1');
       res.status(200).json({ total_au: Number(result.rows[0].total_au) });

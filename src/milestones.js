@@ -24,6 +24,9 @@ export const MILESTONES = [
   { au: 10000,   label: 'Deep Oort cloud' },
   { au: 63241,   label: 'One light-year' },
   { au: 270000,  label: 'Approaching Proxima Centauri' },
+  { au: 377000,  label: "Barnard's Star" },          // 5.96 ly
+  { au: 544000,  label: 'Sirius, the brightest star' }, // 8.6 ly
+  { au: 1000000, label: 'A million AU — farther than any probe will ever fly' },
 ];
 
 const fired = new Set();

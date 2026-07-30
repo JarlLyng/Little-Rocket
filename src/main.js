@@ -51,16 +51,28 @@ const FOV_MAX   = 110;         // FOV at full throttle — sells velocity
 const startBtn = document.getElementById('start-btn');
 startBtn.addEventListener('click', start, { once: true });
 
-// Show the collective-distance line on the start screen as soon as the API
-// resolves. Failure is silent — the game still works without it.
-fetchTotalDistance().then((stats) => {
-  if (!stats || stats.total < 1) return;
-  const el = document.getElementById('collective-stat');
-  el.innerHTML = `Before you, <strong>${stats.total.toLocaleString()}</strong> AU have been flown.`;
+// Show the collective-distance lines on the start screen as soon as the API
+// resolves. Failure is silent — the game still works without them.
+function revealStat(id, html) {
+  const el = document.getElementById(id);
+  el.innerHTML = html;
   el.hidden = false;
   // Force reflow so the opacity transition runs
   void el.offsetWidth;
   el.classList.add('visible');
+}
+fetchTotalDistance().then((stats) => {
+  if (!stats) return;
+  if (stats.total >= 1) {
+    revealStat('collective-stat',
+      `Before you, <strong>${stats.total.toLocaleString()}</strong> AU have been flown.`);
+  }
+  // Only show the record once it's a real journey — a 5 AU record reads
+  // as sad, not inviting. 30 AU is the first milestone (past Neptune).
+  if (stats.farthest >= 30) {
+    revealStat('farthest-stat',
+      `The farthest drifter reached <strong>${stats.farthest.toLocaleString()}</strong> AU.`);
+  }
 });
 
 const HINT_VISIBLE_MS = 6000;
