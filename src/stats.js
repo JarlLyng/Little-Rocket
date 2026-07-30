@@ -24,6 +24,7 @@ export async function fetchTotalDistance() {
     return {
       total: Number(data.total_au) || 0,
       sessions: Number(data.sessions) || 0,
+      farthest: Number(data.farthest_au) || 0,
     };
   } catch {
     return null;
@@ -31,16 +32,18 @@ export async function fetchTotalDistance() {
 }
 
 // `pagehide` can fire more than once (bfcache navigations, tab restore), and
-// some browsers also fire it alongside `visibilitychange`. Guard so a single
-// flight contributes to the collective total at most once — otherwise a player
-// who bounces in and out of the tab inflates the counter for free.
-let reported = false;
+// some browsers also fire it alongside `visibilitychange`. Track how much has
+// already been reported and send only the delta each time — a flight that
+// resumes from bfcache still contributes what it flew after restoring, but
+// bouncing in and out of the tab can't inflate the counter.
+let reportedAU = 0;
 
 export function reportSessionDistance(au) {
-  if (reported) return;
-  const value = Math.floor(Number(au));
-  if (!Number.isFinite(value) || value < 1) return;
-  reported = true;
+  const total = Math.floor(Number(au));
+  if (!Number.isFinite(total)) return;
+  const value = total - reportedAU;
+  if (value < 1) return;
+  reportedAU = total;
 
   // sendBeacon with text/plain avoids a CORS preflight on pagehide where
   // we have very little time before the browser tears the page down.

@@ -4,6 +4,9 @@
  * Strategy:
  *   - Precache the app shell (HTML, CSS, every JS module, manifest, icon) on
  *     install so a cold offline load works.
+ *   - App shell requests are network-first with cache fallback, so a new
+ *     deploy is live on the very next load — no waiting for the SW update
+ *     cycle. Offline still gets the cached shell.
  *   - Runtime cache-first for everything else GET: the Three.js CDN module and
  *     the audio loops get cached the first time they're fetched, then served
  *     from cache on later visits.
@@ -14,7 +17,7 @@
  * step deletes every older cache so clients don't get a stale shell.
  */
 
-const CACHE = 'little-rocket-v3';
+const CACHE = 'little-rocket-v4';
 
 const PRECACHE = [
   '/',
@@ -58,6 +61,9 @@ self.addEventListener('activate', (event) => {
   );
 });
 
+// Shell paths served network-first so deploys land immediately.
+const SHELL = new Set(PRECACHE);
+
 self.addEventListener('fetch', (event) => {
   const { request } = event;
   if (request.method !== 'GET') return;
@@ -70,6 +76,30 @@ self.addEventListener('fetch', (event) => {
   // Skip analytics so cached pageviews don't replay.
   if (url.hostname.includes('umami')) return;
 
+  // App shell: network-first, cache fallback. The fresh response also
+  // refreshes the cache so the offline copy tracks the latest deploy.
+  const isShell = url.origin === self.location.origin
+    && (request.mode === 'navigate' || SHELL.has(url.pathname));
+  if (isShell) {
+    event.respondWith(
+      fetch(request).then((response) => {
+        if (response.ok) {
+          const copy = response.clone();
+          caches.open(CACHE).then((cache) => cache.put(request, copy));
+        }
+        return response;
+      }).catch(() =>
+        caches.match(request).then((cached) => {
+          if (cached) return cached;
+          if (request.mode === 'navigate') return caches.match('/');
+          return Response.error();
+        })
+      )
+    );
+    return;
+  }
+
+  // Everything else (audio loops, CDN modules): cache-first.
   event.respondWith(
     caches.match(request).then((cached) => {
       if (cached) return cached;
@@ -80,11 +110,7 @@ self.addEventListener('fetch', (event) => {
           caches.open(CACHE).then((cache) => cache.put(request, copy));
         }
         return response;
-      }).catch(() => {
-        // Offline and uncached: fall back to the shell for navigations.
-        if (request.mode === 'navigate') return caches.match('/');
-        return Response.error();
-      });
+      }).catch(() => Response.error()); // offline and uncached — nothing to serve
     })
   );
 });

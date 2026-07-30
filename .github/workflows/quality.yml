@@ -48,6 +48,13 @@ jobs:
             test -f "$f" || { echo "Missing: $f"; exit 1; }
           done
 
+      - name: Verify service worker precaches every module
+        run: |
+          set -e
+          for f in src/*.js; do
+            grep -qF "'/$f'" sw.js || { echo "sw.js PRECACHE missing: /$f"; exit 1; }
+          done
+
       - name: Reject TODO/FIXME/XXX in source
         run: |
           if grep -rnE 'TODO|FIXME|XXX' src/ styles/ api/ index.html; then

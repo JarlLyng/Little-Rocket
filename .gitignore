@@ -10,3 +10,6 @@ node_modules/
 .env.local
 .env.*.local
 .vercel/
+
+# Claude Code local session config
+.claude/
