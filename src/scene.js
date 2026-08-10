@@ -85,6 +85,9 @@ export function createScene() {
     makeStarLayer(8000, 0.8, 4000, 0xffffff),
     makeStarLayer(2000, 1.5, 4000, 0xddeeff),
     makeStarLayer(300,  2.5, 4000, 0xffeecc),
+    // A galactic band gives the sky a structure to read against — without it
+    // the starfield is uniform noise in every direction.
+    makeGalacticBand(5000, 1800),
   ];
   for (const layer of starLayers) scene.add(layer);
 
@@ -115,6 +118,39 @@ function makeStarLayer(count, size, spread, color) {
   for (let i = 0; i < pos.length; i++) pos[i] = (Math.random() - 0.5) * spread;
   geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
   return new THREE.Points(geo, new THREE.PointsMaterial({ color, size, sizeAttenuation: false }));
+}
+
+/**
+ * A dense band of faint stars concentrated near one plane — our stand-in for
+ * a galactic disc seen edge-on. Stars sit on a shell at a fixed radius so the
+ * band keeps its shape from every angle, with elevation drawn from a narrow
+ * normal distribution (sum-of-uniforms) so density falls off smoothly away
+ * from the mid-line instead of ending at a hard edge. The whole layer is
+ * tilted so the band cuts across the sky diagonally rather than sitting level.
+ */
+function makeGalacticBand(count, radius) {
+  const geo = new THREE.BufferGeometry();
+  const pos = new Float32Array(count * 3);
+  for (let i = 0; i < count; i++) {
+    const theta = Math.random() * Math.PI * 2;
+    // Three uniforms summed ≈ normal; scaled to keep the band tight.
+    const spread = ((Math.random() + Math.random() + Math.random()) / 3 - 0.5) * 0.55;
+    const r = radius * (0.9 + Math.random() * 0.2);
+    const o = i * 3;
+    pos[o]     = Math.cos(theta) * r;
+    pos[o + 1] = spread * r;
+    pos[o + 2] = Math.sin(theta) * r;
+  }
+  geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  const layer = new THREE.Points(geo, new THREE.PointsMaterial({
+    color: 0xf4f0ff,
+    size: 0.7,
+    sizeAttenuation: false,
+    transparent: true,
+    opacity: 0.55,
+  }));
+  layer.rotation.set(0.34, 0, 0.62);
+  return layer;
 }
 
 function makeStreakLayer(count, spread) {
@@ -228,7 +264,11 @@ function makeSkyGradient() {
   return new THREE.CanvasTexture(canvas);
 }
 
-function makeRadialGradient(hexColor) {
+/**
+ * Sun-style glow: bright core falling off to nothing. Exported because the
+ * comet head wants exactly the same falloff.
+ */
+export function makeRadialGradient(hexColor) {
   return makeGradientTexture(hexColor, [
     [0,    1.0],
     [0.2,  0.6],
@@ -268,6 +308,12 @@ function makeGradientTexture(hexColor, stops) {
 export function createRenderer() {
   const renderer = new THREE.WebGLRenderer({ antialias: true });
   renderer.setSize(window.innerWidth, window.innerHeight);
+  // Filmic highlight rolloff. Without it the suns, engine glow, and every
+  // additive sprite clip to flat white the moment they overlap; ACES lets
+  // them bloom toward white gradually and keeps their colour to the edge.
+  // Exposure compensates for the midtone dip tonemapping introduces.
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.3;
   // Cap pixel ratio lower on touch devices — mobile GPUs choke on retina-
   // density 3D scenes with our planet/asteroid/star/streak count.
   const isTouch = typeof window !== 'undefined'

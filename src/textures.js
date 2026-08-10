@@ -26,6 +26,7 @@ const OCTAVES = [
 
 let cachedBump = null;
 let cachedMap = null;
+let cachedAtmosphere = null;
 
 /**
  * Generates two textures from a single multi-octave value-noise field:
@@ -45,6 +46,38 @@ export function getPlanetBumpTexture() {
 export function getPlanetColorMap() {
   if (!cachedMap) generate();
   return cachedMap;
+}
+
+/**
+ * Atmospheric limb glow — a soft annulus, transparent at the centre and
+ * peaking just outside the planet's silhouette. Drawn as an additive sprite
+ * scaled relative to the planet radius, it reads as haze clinging to the edge
+ * of the world. Peaking OUTSIDE the silhouette matters: a glow that peaked on
+ * the disc would be depth-tested against the sphere and tear along the limb.
+ *
+ * Pure white so a single shared texture can be tinted per planet via the
+ * sprite material's colour. Never disposed — one texture serves every planet.
+ */
+export function getAtmosphereTexture() {
+  if (!cachedAtmosphere) {
+    const size = 256;
+    const canvas = makeCanvas(size);
+    const ctx = canvas.getContext('2d');
+    const r = size / 2;
+    const grad = ctx.createRadialGradient(r, r, 0, r, r, r);
+    // Peak at 0.79 of the sprite's half-width. Paired with a sprite scaled to
+    // ATMOSPHERE_SCALE × radius in planets.js, that lands just off the limb.
+    grad.addColorStop(0,    'rgba(255, 255, 255, 0)');
+    grad.addColorStop(0.60, 'rgba(255, 255, 255, 0)');
+    grad.addColorStop(0.79, 'rgba(255, 255, 255, 0.42)');
+    grad.addColorStop(0.85, 'rgba(255, 255, 255, 0.22)');
+    grad.addColorStop(0.93, 'rgba(255, 255, 255, 0.07)');
+    grad.addColorStop(1,    'rgba(255, 255, 255, 0)');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, size, size);
+    cachedAtmosphere = new THREE.CanvasTexture(canvas);
+  }
+  return cachedAtmosphere;
 }
 
 function generate() {
@@ -128,8 +161,8 @@ function generate() {
   cachedMap.colorSpace = THREE.SRGBColorSpace;
 }
 
-function makeCanvas() {
+function makeCanvas(size = SIZE) {
   const c = document.createElement('canvas');
-  c.width = c.height = SIZE;
+  c.width = c.height = size;
   return c;
 }

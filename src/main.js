@@ -23,6 +23,7 @@ import { createScene, createCamera, createRenderer, updateStreaks, updateSuns, u
 import { createRocket, updateGlow } from './rocket.js';
 import { createPlanetField } from './planets.js';
 import { createAsteroidField } from './asteroids.js';
+import { createComet } from './comet.js';
 import { createControls } from './controls.js';
 import { initAudio, setEngineLevel, suspendAudio } from './audio.js';
 import { createExhaust } from './exhaust.js';
@@ -109,7 +110,7 @@ function setupHint() {
                  || ('ontouchstart' in window);
   toast.textContent = isTouch
     ? 'Drag the left half to steer · drag the right half to throttle'
-    : 'Arrow keys = steer · W/S = throttle · Q/E = roll · Mouse = look around';
+    : 'Arrows = steer · W/S = throttle · Q/E = roll · Mouse = look · H = hide UI';
   let hideTimer = null;
   let removeTimer = null;
 
@@ -149,6 +150,22 @@ function setupMusicButton() {
   });
 }
 
+/**
+ * Photo mode — H strips every piece of chrome so the scene can be captured
+ * clean. A body class does the hiding (see styles/main.css) so nothing here
+ * has to know which elements are currently on screen, and no element's own
+ * `hidden` state is disturbed: leaving photo mode restores exactly what was
+ * visible before.
+ */
+function setupPhotoMode() {
+  window.addEventListener('keydown', (e) => {
+    if (e.code !== 'KeyH' || e.target.tagName === 'INPUT') return;
+    e.preventDefault();
+    const on = document.body.classList.toggle('photo-mode');
+    trackEvent(on ? 'photo-mode-on' : 'photo-mode-off');
+  });
+}
+
 function run() {
   const { scene, suns, streaks, nebulae, starLayers } = createScene();
   const camera = createCamera();
@@ -168,6 +185,7 @@ function run() {
   fetchStrangerNames().then((names) => planets.setStrangerPool(names));
 
   const asteroids = createAsteroidField(scene, rocketGroup);
+  const comet = createComet(scene, rocketGroup);
   const exhaust = createExhaust();
   scene.add(exhaust.object);
 
@@ -317,6 +335,7 @@ function run() {
         setupHint();
         setupMusicButton();
         setupNaming();
+        if (!isTouch) setupPhotoMode();
         startMusic();
         startStory();
       }
@@ -423,6 +442,14 @@ function run() {
       if (has === nameCue.hidden) nameCue.hidden = !has;
     }
     asteroids.update(forward, dt);
+    // A comet keeps its own long, random schedule; it lifts the score the way
+    // a close pass does, so the two rare moments feel related.
+    if (introDone) {
+      comet.update(forward, dt, () => {
+        musicSwell();
+        trackOnce('comet-seen', { distance: Math.floor(distanceAU) });
+      });
+    }
     // Star streaks read as motion; suppressed under reduced-motion AND during intro.
     const streakSpeed = (introDone && !reducedMotion) ? speed : 0;
     updateStreaks(streaks, forward, streakSpeed, MAX_SPEED);

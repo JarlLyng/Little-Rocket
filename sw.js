@@ -17,7 +17,7 @@
  * step deletes every older cache so clients don't get a stale shell.
  */
 
-const CACHE = 'little-rocket-v4';
+const CACHE = 'little-rocket-v5';
 
 const PRECACHE = [
   '/',
@@ -42,6 +42,7 @@ const PRECACHE = [
   '/src/milestones.js',
   '/src/names.js',
   '/src/textures.js',
+  '/src/comet.js',
 ];
 
 self.addEventListener('install', (event) => {
