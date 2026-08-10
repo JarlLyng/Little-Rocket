@@ -27,6 +27,7 @@ const OCTAVES = [
 let cachedBump = null;
 let cachedMap = null;
 let cachedAtmosphere = null;
+let cachedPlume = null;
 
 /**
  * Generates two textures from a single multi-octave value-noise field:
@@ -46,6 +47,41 @@ export function getPlanetBumpTexture() {
 export function getPlanetColorMap() {
   if (!cachedMap) generate();
   return cachedMap;
+}
+
+/**
+ * Engine plume falloff — bright at the nozzle end, fading to black down the
+ * plume's length. Used as the map on an additive cone, where black reads as
+ * fully transparent (the same trick the exhaust particles use), so the plume
+ * dissolves backwards instead of ending in a hard rim. Combined with an
+ * open-ended cone there's no cap either, so nothing about the plume has a
+ * defined edge any more.
+ *
+ * Varies only along v, the cone's height. A gradient across u would put a
+ * visible seam where the cone's UVs wrap around to meet themselves.
+ *
+ * Left in linear colour space on purpose: this is a brightness multiplier, not
+ * colour data, so the authored stops should be used as written rather than
+ * decoded from sRGB first.
+ */
+export function getPlumeTexture() {
+  if (!cachedPlume) {
+    const size = 64;
+    const canvas = makeCanvas(size);
+    const ctx = canvas.getContext('2d');
+    // Textures default to flipY, so canvas row 0 lands at v = 1 — which is the
+    // cone's apex, and the apex is the end tucked up against the nozzle.
+    const grad = ctx.createLinearGradient(0, 0, 0, size);
+    grad.addColorStop(0,    '#ffffff');
+    grad.addColorStop(0.22, '#e0e0e0');
+    grad.addColorStop(0.55, '#6e6e6e');
+    grad.addColorStop(0.8,  '#242424');
+    grad.addColorStop(1,    '#000000');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, size, size);
+    cachedPlume = new THREE.CanvasTexture(canvas);
+  }
+  return cachedPlume;
 }
 
 /**

@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { makeRadialGradient } from './scene.js';
+import { getPlumeTexture } from './textures.js';
 
 /**
  * Read a CSS custom property at runtime so the rocket reflects the design
@@ -68,15 +69,22 @@ export function createRocket() {
   }
 
   const glow = new THREE.Mesh(
-    new THREE.ConeGeometry(0.3, 1.5, 12),
+    // Open-ended: the base cap was the hard circular edge that read as a
+    // solid teardrop from the chase camera. DoubleSide keeps the far wall
+    // contributing now that you can see into it.
+    new THREE.ConeGeometry(0.3, 1.5, 16, 1, true),
     new THREE.MeshBasicMaterial({
       // Additive rather than alpha-blended, so the plume adds light instead of
-      // reading as a solid blue cone with a visible silhouette.
+      // reading as a solid blue cone with a visible silhouette. The map fades
+      // it to black down its length, which under additive blending is the same
+      // as fading to transparent — so the trailing end simply dissolves.
       color: new THREE.Color(GLOW_COLOR).multiplyScalar(GLOW_GAIN),
+      map: getPlumeTexture(),
       transparent: true,
       opacity: 0.7,
       blending: THREE.AdditiveBlending,
       depthWrite: false,
+      side: THREE.DoubleSide,
     })
   );
   glow.rotation.x = -Math.PI / 2;
