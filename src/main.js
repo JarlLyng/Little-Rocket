@@ -24,6 +24,7 @@ import { createRocket, updateGlow } from './rocket.js';
 import { createPlanetField } from './planets.js';
 import { createAsteroidField } from './asteroids.js';
 import { createComet } from './comet.js';
+import { createPostFX } from './postfx.js';
 import { createControls } from './controls.js';
 import { initAudio, setEngineLevel, suspendAudio } from './audio.js';
 import { createExhaust } from './exhaust.js';
@@ -188,6 +189,7 @@ function run() {
   const comet = createComet(scene, rocketGroup);
   const exhaust = createExhaust();
   scene.add(exhaust.object);
+  const postfx = createPostFX(renderer, scene, camera);
 
   const { keys, mouse, touchSteer, touchThrottle } = createControls();
   const speedEl = document.getElementById('speed');
@@ -294,6 +296,7 @@ function run() {
     camera.aspect = window.innerWidth / window.innerHeight;
     camera.updateProjectionMatrix();
     renderer.setSize(window.innerWidth, window.innerHeight);
+    postfx.setSize(window.innerWidth, window.innerHeight);
   });
 
   // Pause audio when tab is hidden so we don't whine in the background.
@@ -463,7 +466,7 @@ function run() {
     if (introDone) exhaust.spawn(enginePos, forward, speed, MAX_SPEED, dt);
     exhaust.update(dt);
 
-    renderer.render(scene, camera);
+    postfx.render();
   }
 
   frame();

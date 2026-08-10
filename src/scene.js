@@ -311,7 +311,10 @@ export function createRenderer() {
   // Filmic highlight rolloff. Without it the suns, engine glow, and every
   // additive sprite clip to flat white the moment they overlap; ACES lets
   // them bloom toward white gradually and keeps their colour to the edge.
-  // Exposure compensates for the midtone dip tonemapping introduces.
+  // Exposure compensates for the midtone dip tonemapping introduces. This
+  // value is for rendering straight to screen; postfx.js lowers it when it
+  // takes over, because a composer blends in linear space and comes out much
+  // brighter — see COMPOSER_EXPOSURE there.
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1.3;
   // Cap pixel ratio lower on touch devices — mobile GPUs choke on retina-

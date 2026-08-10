@@ -51,7 +51,7 @@ jobs:
       - name: Verify service worker precaches every module
         run: |
           set -e
-          for f in src/*.js; do
+          for f in src/*.js $(find vendor -name '*.js'); do
             grep -qF "'/$f'" sw.js || { echo "sw.js PRECACHE missing: /$f"; exit 1; }
           done
 

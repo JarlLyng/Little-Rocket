@@ -17,7 +17,7 @@
  * step deletes every older cache so clients don't get a stale shell.
  */
 
-const CACHE = 'little-rocket-v5';
+const CACHE = 'little-rocket-v6';
 
 const PRECACHE = [
   '/',
@@ -43,6 +43,19 @@ const PRECACHE = [
   '/src/names.js',
   '/src/textures.js',
   '/src/comet.js',
+  '/src/postfx.js',
+  // Three's post-processing addons, vendored at the pinned version so bloom
+  // adds no external dependency and works on a cold offline load.
+  '/vendor/three-addons/postprocessing/EffectComposer.js',
+  '/vendor/three-addons/postprocessing/Pass.js',
+  '/vendor/three-addons/postprocessing/RenderPass.js',
+  '/vendor/three-addons/postprocessing/ShaderPass.js',
+  '/vendor/three-addons/postprocessing/MaskPass.js',
+  '/vendor/three-addons/postprocessing/UnrealBloomPass.js',
+  '/vendor/three-addons/postprocessing/OutputPass.js',
+  '/vendor/three-addons/shaders/CopyShader.js',
+  '/vendor/three-addons/shaders/LuminosityHighPassShader.js',
+  '/vendor/three-addons/shaders/OutputShader.js',
 ];
 
 self.addEventListener('install', (event) => {

@@ -19,6 +19,11 @@ import { makeRadialGradient } from './scene.js';
 
 const HEAD_COLOR = 0xd8f4ff;   // pale ice blue
 const HEAD_SIZE = 46;
+// Material colours may exceed 1.0 — that's how you hand something to the bloom
+// pass deliberately. This lifts the head's core above postfx's threshold so it
+// bleeds light, while the tail (well under 1.0) stays crisp. Where bloom is off
+// the tonemapper simply rolls the extra brightness off; the head reads white.
+const HEAD_GAIN = 2.0;
 
 const TRAIL_POOL = 260;
 const TRAIL_LIFETIME_S = 1.7;
@@ -51,7 +56,7 @@ function randRange([lo, hi]) { return lo + Math.random() * (hi - lo); }
 export function createComet(scene, anchor) {
   const head = new THREE.Sprite(new THREE.SpriteMaterial({
     map: makeRadialGradient(HEAD_COLOR),
-    color: 0xffffff,
+    color: new THREE.Color(HEAD_GAIN, HEAD_GAIN, HEAD_GAIN),
     transparent: true,
     opacity: 0,
     depthWrite: false,
