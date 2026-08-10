@@ -383,7 +383,7 @@ function run() {
 
     // Engines glow + audio scaled by intro progress so they ignite, not burst on
     const presentationSpeed = speed * introEase;
-    updateGlow(rocket, presentationSpeed);
+    updateGlow(rocket, presentationSpeed, MAX_SPEED);
     setEngineLevel(presentationSpeed, MAX_SPEED);
     // Music brightness tracks throttle: muffled at rest, open at full speed.
     setMusicIntensity(presentationSpeed / MAX_SPEED);
