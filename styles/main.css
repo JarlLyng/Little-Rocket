@@ -473,3 +473,23 @@ h1 {
 }
 #story[hidden] { display: none; }
 #story.visible { opacity: 1; }
+
+/* --- Photo mode (H) -------------------------------------------------------
+   Strip every piece of chrome so the scene can be captured clean. These
+   selectors carry a class plus an id, so they outrank the plain-id rules
+   above without needing !important — and because they never touch the
+   elements' own `hidden` attribute, leaving photo mode restores exactly
+   what was on screen before. */
+body.photo-mode #ui,
+body.photo-mode #hint-toast,
+body.photo-mode #hint-button,
+body.photo-mode #music-button,
+body.photo-mode #near-miss,
+body.photo-mode #milestone-toast,
+body.photo-mode #throttle-bar,
+body.photo-mode #planet-labels,
+body.photo-mode #name-cue,
+body.photo-mode #name-dialog,
+body.photo-mode #story {
+  display: none;
+}

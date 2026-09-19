@@ -12,7 +12,7 @@
  * when the rocket enters within 2.2× a planet's radius.
  */
 import * as THREE from 'three';
-import { getPlanetBumpTexture, getPlanetColorMap } from './textures.js';
+import { getPlanetBumpTexture, getPlanetColorMap, getAtmosphereTexture } from './textures.js';
 
 // Scratch vectors reused inside the per-frame loop to avoid Vector3 churn.
 const _scratch = new THREE.Vector3();
@@ -33,6 +33,11 @@ const NAMEABLE_RANGE_MULT = 8;
 const STRANGER_CHANCE = 0.12; // chance a freshly-spawned world already bears a stranger's name
 const LABEL_FADE_NEAR = 40;   // full opacity within this distance
 const LABEL_FADE_FAR = 700;   // fully faded beyond this
+
+// Atmospheric limb glow. The sprite spans ATMOSPHERE_SCALE × radius, and the
+// shared texture's bright ring sits at 0.79 of its half-width — so the glow
+// peaks at ~1.15× the planet radius, just clear of the silhouette.
+const ATMOSPHERE_SCALE = 2.9;
 
 /**
  * @param scene       THREE.Scene
@@ -105,6 +110,20 @@ export function createPlanetField(scene, anchor, camera = null, labelLayer = nul
     );
     body.userData.spinSpeed = (Math.random() - 0.5) * 0.005;
     group.add(body);
+
+    // Atmospheric haze on the limb. Only a touch of white — under ACES
+    // tonemapping an additive glow desaturates as it brightens, so a tint
+    // lifted much further toward white turns to grey fog on screen.
+    const atmosphere = new THREE.Sprite(new THREE.SpriteMaterial({
+      map: getAtmosphereTexture(),
+      color: new THREE.Color(color).lerp(new THREE.Color(0xffffff), 0.18),
+      transparent: true,
+      opacity: 0.5,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+    }));
+    atmosphere.scale.setScalar(r * ATMOSPHERE_SCALE);
+    group.add(atmosphere);
 
     if (Math.random() < RING_CHANCE) {
       const ring = new THREE.Mesh(
@@ -256,6 +275,9 @@ export function createPlanetField(scene, anchor, camera = null, labelLayer = nul
             obj.geometry.dispose();
             obj.material.dispose();
             // Note: bumpMap texture is shared and intentionally NOT disposed here.
+          } else if (obj.isSprite) {
+            // The atmosphere sprite: material is per-planet, its map is shared.
+            obj.material.dispose();
           }
         });
         planets.splice(i, 1);
