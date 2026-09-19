@@ -43,12 +43,15 @@ Built with [Three.js](https://threejs.org/). No build step, no client dependenci
 | W / S | Throttle up / down |
 | Mouse | Look around |
 | N | Name a world that has drifted close |
+| H | Photo mode — hide all UI for a clean screenshot |
 | ? button | Show controls hint |
 | ♪ button | Toggle music *(visible only if loops are configured)* |
 
 **Touch (phone, tablet):** drag the **left half** of the screen to steer (virtual joystick that re-centers on release), drag the **right half** vertically to set throttle (sticky — keeps the position when you let go). A vertical bar on the right edge mirrors your current speed. When a world drifts close, a **Name this world** button appears at the bottom.
 
-The HUD shows speed and distance traveled (in AU). A subtle **NEAR MISS** flash fires when you pass within 2.2× a planet's radius.
+The HUD shows speed and distance traveled (in AU). A subtle **NEAR MISS** flash fires when you pass within 2.2× a planet's radius, and milestone toasts mark distance thresholds from Neptune out past Sirius.
+
+Rarely — a long, random wait between appearances — a **comet** crosses the view, lifting the score as it passes. It's meant to feel like something you were lucky to be looking at rather than a recurring effect. Under `prefers-reduced-motion` it still appears, but drifts across instead of streaking past.
 
 ### Naming worlds
 
@@ -93,12 +96,13 @@ Targets:
 
 Initial payload:
 
-- HTML + CSS + JS modules: ~30 KB gzipped
+- HTML + CSS + JS modules: ~46 KB gzipped
+- Three.js post-processing addons (vendored, see below): ~9 KB gzipped
 - Three.js (CDN, cached after first visit): ~600 KB gzipped
 - Four AAC music loops: ~2.3 MB total, lazy-loaded sequentially during the cinematic intro
 - Engine sound: synthesized at runtime — no audio file
 
-The renderer caps `devicePixelRatio` at 1.5 on touch devices (`scene.js:createRenderer`). Adaptive quality (auto-downgrading streaks/star count if frame time drifts) is on the roadmap but not implemented yet.
+The renderer caps `devicePixelRatio` at 1.5 on touch devices (`scene.js:createRenderer`). Bloom runs through an `EffectComposer` chain on desktop only — touch devices render straight to screen, since they already need that pixel-ratio cap to hold framerate (`postfx.js`). Adaptive quality (auto-downgrading streaks/star count if frame time drifts) is on the roadmap but not implemented yet.
 
 ---
 
@@ -115,6 +119,10 @@ styles/
 
 vendor/
   iamjarl-tokens.css         Vendored copy of the design system tokens (v0.5.0)
+  three-addons/              Three.js post-processing addons, pinned to 0.160.0
+                             (EffectComposer, UnrealBloomPass, OutputPass, …) —
+                             vendored so bloom adds no external dependency and
+                             works on a cold offline load
 
 src/
   main.js                    Game loop, intro, input wiring, scene orchestration
@@ -124,6 +132,8 @@ src/
   asteroids.js               Pool-shared low-poly asteroid clusters
   textures.js                Multi-octave value-noise bump + color textures
   exhaust.js                 Particle trail behind the rocket
+  comet.js                   Rare crossing comet — additive head + drifting tail
+  postfx.js                  Bloom chain (desktop only); owns composer exposure
   audio.js                   Procedural engine sound (Web Audio API)
   music.js                   Background music player — speed-driven lowpass + fly-by swell
   story.js                   Slow sci-fi narrative cycle
@@ -131,8 +141,8 @@ src/
   motion.js                  prefers-reduced-motion gate
   analytics.js               Umami event wrapper
   stats.js                   Collective-distance API client
-  names.js                   Collective planet-names API client
   milestones.js              Distance-threshold milestone toasts
+  names.js                   Collective planet-names API client
 
 api/
   distance.js                Vercel serverless function — collective distance (Turso)
@@ -194,19 +204,22 @@ Two important conventions:
 | Module | What it owns | Key exports |
 |---|---|---|
 | `main.js` | Frame loop, intro state, input → speed/rotation, camera transform, HUD updates | _none — entrypoint_ |
-| `scene.js` | Scene tree, lights, sky gradient, suns, star layers, streak layer, nebulae | `createScene`, `updateSuns`, `updateStreaks`, `updateNebulae`, `updateStarAnchors` |
-| `rocket.js` | Rocket mesh group, engine glow material, runtime read of `--ij-color-primary` | `createRocket`, `updateGlow` |
-| `planets.js` | Spawn/recycle planet groups with rings & moons, near-miss detection | `createPlanetField` |
+| `scene.js` | Scene tree, lights, sky gradient, suns, star layers, galactic band, streak layer, nebulae, ACES tonemapping | `createScene`, `createRenderer`, `makeRadialGradient`, `updateSuns`, `updateStreaks`, `updateNebulae`, `updateStarAnchors` |
+| `rocket.js` | Rocket mesh group, the fresnel plume shader + hot nozzle core, runtime read of `--ij-color-primary` | `createRocket`, `updateGlow` |
+| `planets.js` | Spawn/recycle planet groups with rings, moons & atmospheric limbs, near-miss detection | `createPlanetField` |
 | `asteroids.js` | Spawn/recycle asteroid clusters from a shared geometry pool | `createAsteroidField` |
-| `textures.js` | Multi-octave noise → bump texture + color map, both shared | `getPlanetBumpTexture`, `getPlanetColorMap` |
+| `textures.js` | Multi-octave noise → bump texture + color map, plus the shared atmosphere limb gradient | `getPlanetBumpTexture`, `getPlanetColorMap`, `getAtmosphereTexture` |
 | `exhaust.js` | Ring-buffer particle trail with additive fade | `createExhaust` |
+| `comet.js` | Rare crossing comet on its own random schedule — additive head, drifting world-space tail | `createComet` |
+| `postfx.js` | Bloom chain (RenderPass → UnrealBloomPass → OutputPass), desktop only; owns the composer's exposure | `createPostFX` |
 | `audio.js` | Filtered noise + sub-osc engine drone, Web Audio API | `initAudio`, `setEngineLevel`, `suspendAudio` |
-| `music.js` | Random loop selection over a list of MP3 paths, mute persistence | `startMusic`, `toggleMusic`, `isMuted`, `hasMusic` |
+| `music.js` | Gapless loop scheduling over a list of AAC paths, speed-driven lowpass, mute persistence | `initMusic`, `startMusic`, `toggleMusic`, `isMuted`, `hasMusic`, `setMusicIntensity`, `musicSwell` |
 | `story.js` | Sentence-by-sentence narrative with fade in/out and looping | `startStory` |
 | `controls.js` | Keyboard + mouse listeners, blur-resets all keys | `createControls` |
 | `motion.js` | `prefers-reduced-motion` matchMedia gate, live-updates | `prefersReducedMotion` |
 | `analytics.js` | Thin wrapper over Umami, with once-per-session helper | `trackEvent`, `trackOnce` |
 | `stats.js` | Collective-distance API client (Turso-backed via /api/distance) | `fetchTotalDistance`, `reportSessionDistance` |
+| `names.js` | Collective planet-names API client (Turso-backed via /api/names) | `fetchStrangerNames`, `submitName`, `MAX_NAME_LEN` |
 | `milestones.js` | Distance threshold table + once-per-session edge detection | `MILESTONES`, `checkMilestone` |
 
 ---
@@ -226,11 +239,28 @@ The most useful knobs, organized by where they live. All are plain `const` decla
 - `RING_CHANCE`, `ONE_MOON_CHANCE`, `TWO_MOON_CHANCE` — per-planet probabilities
 - `FIELD_COUNT`, `ASTEROIDS_PER_FIELD`, `FIELD_RADIUS` — asteroid density
 
-**Visuals** (`scene.js`, `textures.js`, `exhaust.js`)
+**Visuals** (`scene.js`, `textures.js`, `exhaust.js`, `planets.js`)
 - `SUNS` — array of sun specs (direction, color, intensity, halo size)
 - `NEBULA_COLORS`, plus opacity range in `makeNebulae`
 - `OCTAVES` — noise frequency bands for planet textures
 - `POOL_SIZE`, `LIFETIME_S`, `SPAWN_RATE`, `SPAWN_THRESHOLD` — exhaust trail tuning
+- `ATMOSPHERE_SCALE` (`planets.js`) — limb-glow sprite size relative to planet radius
+
+**Engine plume** (`rocket.js`)
+- `GLOW_COLOR`, `GLOW_GAIN` — plume colour and HDR gain. Kept *below* the bloom threshold on purpose: a flat cone has one uniform colour, so if it crossed the threshold the whole cone would bloom and flood the frame
+- `PLUME_EDGE_POWER` — how sharply the fresnel falloff tightens toward the silhouette
+- `CORE_COLOR`, `CORE_GAIN`, `CORE_THROTTLE_START` — the small nozzle core that *is* above the threshold, and the throttle fraction at which it lights
+
+**Bloom** (`postfx.js`)
+- `STRENGTH`, `RADIUS`, `THRESHOLD` — the threshold sits above 1.0 deliberately, since a star point is pure white at luminance 1.0 and a lower threshold blooms all 15,000 of them
+- `COMPOSER_EXPOSURE` — a composer blends in linear space rather than sRGB, which comes out far brighter; this puts overall brightness back where the scene was tuned
+- `MSAA_SAMPLES` — the renderer's own `antialias` only covers the default framebuffer
+
+**Comet** (`comet.js`)
+- `FIRST_WAIT_S`, `REPEAT_WAIT_S` — how long the dark stays empty between appearances
+- `CROSS_SPEED`, `LIFETIME_S`, `SPAWN_AHEAD`, `SPAWN_LATERAL` — the crossing itself
+- `REDUCED_MOTION_SPEED` — fraction of normal speed under `prefers-reduced-motion`
+- `HEAD_GAIN`, `TRAIL_GAIN`, `TRAIL_DRIFT` — head brightness (above the bloom threshold) and how the tail disperses
 
 **Audio** (`audio.js`, `music.js`)
 - `VOLUME` (in `music.js`) — music loop volume, defaults to 0.4

@@ -16,6 +16,7 @@
  */
 import * as THREE from 'three';
 import { makeRadialGradient } from './scene.js';
+import { prefersReducedMotion } from './motion.js';
 
 const HEAD_COLOR = 0xd8f4ff;   // pale ice blue
 const HEAD_SIZE = 46;
@@ -43,6 +44,14 @@ const SPAWN_AHEAD = [700, 1300];
 const SPAWN_LATERAL = [180, 460];
 const CROSS_SPEED = [130, 250];  // world units per second, across the view
 const LIFETIME_S = 20;
+
+// A comet sweeping across the view is exactly the kind of motion
+// prefers-reduced-motion asks us to tone down. The rest of the scene suppresses
+// motion outright under that setting (streaks, camera shake, FOV punch), but a
+// comet is content rather than a motion cue, and removing it entirely would
+// mean those players never see one of the rarest things in the game. So it
+// still appears — it just drifts across instead of streaking past.
+const REDUCED_MOTION_SPEED = 0.25;
 
 const _headPos = new THREE.Vector3();
 const _toComet = new THREE.Vector3();
@@ -112,7 +121,9 @@ export function createComet(scene, anchor) {
 
     // Travel mostly sideways — inward, so it crosses the view rather than
     // drifting further out — with a little vertical and forward variation.
-    const cross = randRange(CROSS_SPEED);
+    // Sampled once at spawn, so a comet keeps one speed for its whole pass even
+    // if the OS setting changes mid-flight.
+    const cross = randRange(CROSS_SPEED) * (prefersReducedMotion() ? REDUCED_MOTION_SPEED : 1);
     velocity.set(0, 0, 0)
       .addScaledVector(right, -side * cross)
       .addScaledVector(up, (Math.random() - 0.5) * cross * 0.4)
