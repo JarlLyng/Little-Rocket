@@ -381,6 +381,22 @@ per-IP rate limit (`RATE_MAX_POSTS` per `RATE_WINDOW_S`) so a script can't pump
 the total unattended. The client also reports each flight at most once per
 session, so `pagehide`/bfcache can't double-count.
 
+`/api/names` carries the same CORS allowlist and per-IP rate limit, plus a
+denylist (`BLOCKED_SUBSTRINGS`, `BLOCKED_WORDS`, `SPAM_PATTERNS` in
+`api/names.js`). A name you give drifts onto *other* players' worlds, which
+makes the pool a shared surface rather than your own — it was being used to push
+an insult at the repo owner onto everyone else's sky. Names are folded to lower
+case with diacritics stripped and leet digits mapped back to letters, then
+checked both as written and with repeated characters collapsed, so `f.u.c.k`,
+`5ucks` and `fuuuck` are all caught. A rejected name gets the same `400` as an
+empty one so the filter isn't advertised, and since the client pins the name to
+your own world locally before posting, you still name your world — it simply
+never drifts to anyone else.
+
+It's a first line of defence, not a complete one. Rows are timestamped, so
+anything that gets through can still be removed by hand:
+`DELETE FROM planet_names WHERE ...`.
+
 ### Cache headers
 
 `vercel.json` overrides defaults only where it pays off:
