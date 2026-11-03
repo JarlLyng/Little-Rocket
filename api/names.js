@@ -1,7 +1,7 @@
 /**
  * Collective planet names, backed by Turso.
  *
- * GET  /api/names           → { names: string[] }   a random sample
+ * GET  /api/names           → { names: [{ name, age_days }] }   a random sample
  * POST /api/names           → { ok: true }          body: { name: string }
  *
  * The melancholy conceit: names don't belong to any one planet. The field is
@@ -212,11 +212,17 @@ export default async function handler(req, res) {
     const c = getClient();
 
     if (req.method === 'GET') {
+      // Age is computed here rather than client-side: created_at is a server
+      // clock, and a drifter whose device clock is off shouldn't see a name
+      // that was left "in 3 days".
       const result = await c.execute({
-        sql: 'SELECT name FROM planet_names ORDER BY RANDOM() LIMIT ?',
+        sql: `SELECT name, MAX(0, (unixepoch() - created_at) / 86400) AS age_days
+              FROM planet_names ORDER BY RANDOM() LIMIT ?`,
         args: [SAMPLE_SIZE],
       });
-      res.status(200).json({ names: result.rows.map((r) => String(r.name)) });
+      res.status(200).json({
+        names: result.rows.map((r) => ({ name: String(r.name), age_days: Number(r.age_days) })),
+      });
       return;
     }
 

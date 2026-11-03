@@ -379,6 +379,20 @@ h1 {
 }
 .planet-label.stranger { color: rgba(255, 255, 255, 0.72); }
 
+/* A stranger's world also says how long its name has been drifting. Stacked
+   under the name, quieter again, so it reads as a footnote to the world rather
+   than a second label competing with it. */
+.planet-label-name { display: block; }
+.planet-label-age {
+  display: block;
+  margin-top: 2px;
+  font-size: var(--ij-font-size-xs, 12px);
+  font-style: normal;
+  letter-spacing: 0.2px;
+  color: var(--ij-color-text-tertiary, rgba(255, 255, 255, 0.45));
+  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.8);
+}
+
 /* Naming cue — a quiet prompt at the bottom when a world is within reach. */
 #name-cue {
   position: fixed;

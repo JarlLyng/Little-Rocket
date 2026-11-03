@@ -248,6 +248,7 @@ function run() {
   const nameForm = document.getElementById('name-form');
   const nameInput = document.getElementById('name-input');
   let nameDialogOpen = false;
+  let hasNamedAWorld = false;   // gates one of the story lines, see story.js
   nameCue.textContent = isTouch ? 'Name this world' : 'Name this world · N';
 
   function openNameDialog() {
@@ -268,7 +269,7 @@ function run() {
     nameForm.addEventListener('submit', (e) => {
       e.preventDefault();
       const named = planets.nameNearest(nameInput.value.trim().slice(0, MAX_NAME_LEN));
-      if (named) { submitName(named); trackEvent('planet-named'); }
+      if (named) { hasNamedAWorld = true; submitName(named); trackEvent('planet-named'); }
       closeNameDialog();
     });
     nameInput.addEventListener('keydown', (e) => {
@@ -340,7 +341,10 @@ function run() {
         setupNaming();
         if (!isTouch) setupPhotoMode();
         startMusic();
-        startStory();
+        startStory({
+          getDistanceAU: () => distanceAU,
+          hasNamed: () => hasNamedAWorld,
+        });
       }
     } else {
       // Combine keyboard arrows + virtual joystick. Each axis is the sum so

@@ -3,7 +3,8 @@
  * /api/names.
  *
  * fetchStrangerNames() — pull a random sample of names other players have left,
- *   so the planet field can sprinkle them onto passing worlds.
+ *   each with how many days ago it was left, so a passing world can say how
+ *   long its name has been drifting.
  * submitName(name) — let a name you gave a world loose into the shared pool.
  *
  * Both fail silently. Naming is atmosphere, never a hard dependency — the game
@@ -19,7 +20,11 @@ export async function fetchStrangerNames() {
     const response = await fetch(API_URL);
     if (!response.ok) return [];
     const data = await response.json();
-    return Array.isArray(data.names) ? data.names.filter((n) => typeof n === 'string') : [];
+    if (!Array.isArray(data.names)) return [];
+    return data.names
+      .map((n) => (typeof n === 'string' ? { name: n, ageDays: null } : n))
+      .filter((n) => n && typeof n.name === 'string')
+      .map((n) => ({ name: n.name, ageDays: Number.isFinite(n.age_days) ? n.age_days : null }));
   } catch {
     return [];
   }

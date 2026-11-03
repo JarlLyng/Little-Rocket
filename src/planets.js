@@ -156,12 +156,15 @@ export function createPlanetField(scene, anchor, camera = null, labelLayer = nul
     group.userData.stranger = false; // true if the name came from the shared pool
     group.userData.nameable = false; // true once you've drifted close enough to name it
     group.userData.labelEl = null;   // floating DOM label, created lazily when named
+    group.userData.ageDays = null;   // how long a stranger's name has been drifting
 
     // Worlds spawned ahead occasionally already carry a name a stranger let
     // loose. The initial field spawns before the pool loads, so the opening
     // never floods you with names — they appear as you fly on.
     if (!initial && strangerPool.length && Math.random() < STRANGER_CHANCE) {
-      group.userData.name = strangerPool[Math.floor(Math.random() * strangerPool.length)];
+      const pick = strangerPool[Math.floor(Math.random() * strangerPool.length)];
+      group.userData.name = pick.name;
+      group.userData.ageDays = pick.ageDays;
       group.userData.stranger = true;
     }
 
@@ -187,10 +190,38 @@ export function createPlanetField(scene, anchor, camera = null, labelLayer = nul
     if (!labelLayer || p.userData.labelEl) return;
     const el = document.createElement('div');
     el.className = `planet-label ${p.userData.stranger ? 'stranger' : 'mine'}`;
-    el.textContent = p.userData.stranger ? `"${p.userData.name}"` : p.userData.name;
+
+    // textContent throughout — names come from other people, and the pool is
+    // a shared surface. Nothing here is ever parsed as HTML.
+    const nameEl = document.createElement('span');
+    nameEl.className = 'planet-label-name';
+    nameEl.textContent = p.userData.stranger ? `"${p.userData.name}"` : p.userData.name;
+    el.appendChild(nameEl);
+
+    // A stranger's world says how long its name has been out here. It is the
+    // quietest way to make the dark feel inhabited by people who came before.
+    if (p.userData.stranger && p.userData.ageDays !== null) {
+      const ageEl = document.createElement('span');
+      ageEl.className = 'planet-label-age';
+      ageEl.textContent = formatAge(p.userData.ageDays);
+      el.appendChild(ageEl);
+    }
+
     el.style.opacity = '0';
     labelLayer.appendChild(el);
     p.userData.labelEl = el;
+  }
+
+  // Deliberately vague past a point: "left here 2 years ago" carries the
+  // feeling better than an exact day count, and the exact number stops
+  // meaning anything to a reader once it's large.
+  function formatAge(days) {
+    if (days <= 0) return 'left here today';
+    if (days === 1) return 'left here yesterday';
+    if (days < 60) return `left here ${days} days ago`;
+    const months = Math.round(days / 30);
+    if (months < 24) return `left here ${months} months ago`;
+    return `left here ${Math.round(days / 365)} years ago`;
   }
 
   function removeLabel(p) {
@@ -288,7 +319,11 @@ export function createPlanetField(scene, anchor, camera = null, labelLayer = nul
 
   return {
     update,
-    setStrangerPool(names) { strangerPool = Array.isArray(names) ? names : []; },
+    setStrangerPool(names) {
+      strangerPool = Array.isArray(names)
+        ? names.filter((n) => n && typeof n.name === 'string')
+        : [];
+    },
     setOnStranger(cb) { onStranger = cb; },
     // True when there's a world close enough to name right now.
     hasNameable() { return currentNameable !== null; },

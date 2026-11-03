@@ -55,7 +55,7 @@ Rarely — a long, random wait between appearances — a **comet** crosses the v
 
 ### Naming worlds
 
-When a planet drifts close, a cue invites you to name it. The name you give pins to that world and is let loose into a shared pool (`/api/names`). Because the planet field is procedural and ephemeral, names don't belong to any one world — other drifters' clients pull a random sample and occasionally pin one to a world passing *them*. So you'll sometimes drift past a world already bearing a stranger's name. Your own names glow in the accent colour; strangers' are quiet and white. *"It will not remember."* Naming is pure atmosphere — it degrades silently when the API is unreachable, and the game plays identically offline.
+When a planet drifts close, a cue invites you to name it. The name you give pins to that world and is let loose into a shared pool (`/api/names`). Because the planet field is procedural and ephemeral, names don't belong to any one world — other drifters' clients pull a random sample and occasionally pin one to a world passing *them*. So you'll sometimes drift past a world already bearing a stranger's name. Your own names glow in the accent colour; strangers' are quiet and white, with a second, quieter line underneath saying how long the name has been drifting — *left here 23 days ago*. The age comes from the server's own clock, so a device with a wrong clock can't show a name left "in 3 days". *"It will not remember."* Naming is pure atmosphere — it degrades silently when the API is unreachable, and the game plays identically offline.
 
 ---
 
@@ -217,12 +217,12 @@ Two important conventions:
 | `postfx.js` | Bloom chain (RenderPass → UnrealBloomPass → OutputPass), desktop only; owns the composer's exposure | `createPostFX` |
 | `audio.js` | Filtered noise + sub-osc engine drone, Web Audio API | `initAudio`, `setEngineLevel`, `suspendAudio` |
 | `music.js` | Gapless loop scheduling over a list of AAC paths, speed-driven lowpass, mute persistence | `initMusic`, `startMusic`, `toggleMusic`, `isMuted`, `hasMusic`, `setMusicIntensity`, `musicSwell` |
-| `story.js` | Sentence-by-sentence narrative with fade in/out and looping | `startStory` |
+| `story.js` | Sentence-by-sentence narrative with fade in/out and looping, gated on distance and on whether a world has been named | `startStory` |
 | `controls.js` | Keyboard + mouse listeners, blur-resets all keys | `createControls` |
 | `motion.js` | `prefers-reduced-motion` matchMedia gate, live-updates | `prefersReducedMotion` |
 | `analytics.js` | Thin wrapper over Umami, with once-per-session helper | `trackEvent`, `trackOnce` |
 | `stats.js` | Collective-distance API client (Turso-backed via /api/distance) | `fetchTotalDistance`, `reportSessionDistance` |
-| `names.js` | Collective planet-names API client (Turso-backed via /api/names) | `fetchStrangerNames`, `submitName`, `MAX_NAME_LEN` |
+| `names.js` | Collective planet-names API client (Turso-backed via /api/names), carrying each name's age | `fetchStrangerNames`, `submitName`, `MAX_NAME_LEN` |
 | `milestones.js` | Distance threshold table + once-per-session edge detection | `MILESTONES`, `checkMilestone` |
 
 ---
@@ -293,6 +293,17 @@ The ♪ button auto-appears in the top-right HUD. Mute state persists in localSt
 ## Editing the story
 
 Edit `SENTENCES` in `src/story.js`. Each sentence fades in over `FADE_MS`, holds for `HOLD_MS`, fades out, and waits `GAP_MS` before the next. The narrative loops indefinitely once it starts (after the cinematic intro completes).
+
+A line can carry a gate, so the narration knows roughly where you are:
+
+| Gate | Meaning |
+|---|---|
+| `minAU: 150` | Only once you've flown that far |
+| `afterNaming: true` | Only once you've actually named a world |
+
+Gates are re-checked every time a line is due, so one becomes available mid-flight the moment you cross its threshold. Ungated lines carry the opening on their own and the gated ones arrive later, which is what makes the dark feel like it noticed.
+
+Set thresholds against what people actually fly, not against the milestone ladder — the farthest anyone has drifted is under 500 AU, so the deepest line sits at 450. A line gated at a light-year is a line nobody reads. Keep at least one sentence ungated, or the story has nothing to show at distance zero.
 
 Keep lines short — they should be readable at a glance from the bottom of the screen while the player is steering.
 
