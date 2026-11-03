@@ -51,7 +51,7 @@ Built with [Three.js](https://threejs.org/). No build step, no client dependenci
 
 The HUD shows speed and distance traveled (in AU). A subtle **NEAR MISS** flash fires when you pass within 2.2× a planet's radius, and milestone toasts mark distance thresholds from Neptune out past Sirius.
 
-Rarely — a long, random wait between appearances — a **comet** crosses the view, lifting the score as it passes. It's meant to feel like something you were lucky to be looking at rather than a recurring effect. Under `prefers-reduced-motion` it still appears, but drifts across instead of streaking past.
+Rarely — a long, random wait between appearances — a **comet** crosses the view, lifting the music as it passes. It's meant to feel like something you were lucky to be looking at rather than a recurring effect. Under `prefers-reduced-motion` it still appears, but drifts across instead of streaking past.
 
 ### Naming worlds
 
@@ -92,7 +92,7 @@ Targets:
 |---|---|
 | Modern desktop / laptop | 60 FPS at native resolution, DPR cap 2 |
 | Modern phone / tablet | 60 FPS at DPR cap 1.5 |
-| Low-end mobile | 30+ FPS (no automatic fallback yet — see #future) |
+| Low-end mobile | 30+ FPS — no automatic quality fallback yet |
 
 Initial payload:
 
@@ -317,7 +317,7 @@ The script verifies that every `--ij-*` token referenced in our CSS still exists
 
 ## Deployment
 
-Hosted entirely on [Vercel](https://vercel.com) at the custom domain `littlerocket.iamjarl.com`. Static files in the repo root are served as-is (no build step); `api/distance.js` is picked up automatically as a serverless function. Frontend and API share the same origin, so there is no CORS dance for the start-screen counter.
+Hosted entirely on [Vercel](https://vercel.com) at the custom domain `littlerocket.iamjarl.com`. Static files in the repo root are served as-is (no build step); `api/distance.js` and `api/names.js` are picked up automatically as serverless functions. Frontend and API share the same origin, so there is no CORS dance for the start-screen counter or the shared name pool.
 
 ### One-time setup
 
