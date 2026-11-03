@@ -7,7 +7,7 @@ Thanks for taking a look. The project is small and tries to stay that way — th
 - **Keep it modular.** Each visible system (planets, exhaust, audio, story, …) is a single file in `src/` with a narrow public surface. New visual or audio features should follow the same pattern: one module, one factory function returning either a Three.js object plus an `update()` method, or a small set of `start/stop/toggle` functions.
 - **Tune via constants, not magic numbers.** All the meaningful knobs are named `const`s at the top of each module. If you find yourself touching a value mid-function, hoist it.
 - **Stay allocation-light in the hot loop.** The frame loop in `main.js` and the per-planet/asteroid loops in `planets.js`/`asteroids.js` should not allocate. Reuse scratch `Vector3` instances declared in the closure or at module level.
-- **Don't break the no-build constraint.** No bundler, no transpilation, no `npm install`-required dependencies. Three.js is loaded from `cdn.jsdelivr.net` via the import map in `index.html`.
+- **Don't break the no-build constraint.** No bundler, no transpilation, no `npm install`-required dependencies. Three.js and its post-processing addons are vendored under `vendor/` at a pinned version and resolved through the import map in `index.html` — so the game has no external runtime dependency at all. If you bump Three.js, replace both `vendor/three/` and `vendor/three-addons/` together; they must stay on the same version.
 
 ## Adding a new module
 

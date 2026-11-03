@@ -9,7 +9,7 @@
 
 A tiny browser game about flying nowhere in particular. Pull the throttle and drift past procedurally placed planets — some with rings, some with moons. Engines spool up. Stars streak past at speed. A slow, melancholy story unfolds one sentence at a time across the bottom of your screen. There is no score, no fail state, no destination. Just the long dark, and you in it.
 
-Built with [Three.js](https://threejs.org/). No build step, no client dependencies to install — every file in the repo is served as-is. The only npm dependency is `@libsql/client`, used by the small Turso-backed counter API.
+Built with [Three.js](https://threejs.org/). No build step, no client dependencies to install, and nothing fetched from a third-party host at runtime — every file the browser needs is in this repo and served as-is. The only npm dependency is `@libsql/client`, used by the small Turso-backed counter API.
 
 **Play it:** [littlerocket.iamjarl.com](https://littlerocket.iamjarl.com/) · keyboard on desktop, drag-to-fly on phone and tablet.
 
@@ -71,7 +71,7 @@ npx serve .              # needs network on first run to fetch the package
 
 Then open the URL the server prints.
 
-The static frontend has **no build step** — everything in the repo root is served as-is, locally and in production. Three.js comes from `cdn.jsdelivr.net` via an import map in `index.html`, so the browser never needs `npm install`. The Vercel function in `api/` does pull `@libsql/client` at deploy time; that's automatic.
+The static frontend has **no build step** — everything in the repo root is served as-is, locally and in production. Three.js and its post-processing addons are vendored under `vendor/` at a pinned version and resolved through an import map in `index.html`, so the browser never needs `npm install` and the game has no external runtime dependency: nothing it needs is fetched from a third-party host. The Vercel function in `api/` does pull `@libsql/client` at deploy time; that's automatic.
 
 ## Browser support
 
@@ -97,8 +97,8 @@ Targets:
 Initial payload:
 
 - HTML + CSS + JS modules: ~46 KB gzipped
-- Three.js post-processing addons (vendored, see below): ~9 KB gzipped
-- Three.js (CDN, cached after first visit): ~600 KB gzipped
+- Three.js post-processing addons (vendored): ~9 KB gzipped
+- Three.js itself (vendored, cached after first visit): ~252 KB gzipped
 - Four AAC music loops: ~2.3 MB total, lazy-loaded sequentially during the cinematic intro
 - Engine sound: synthesized at runtime — no audio file
 
@@ -119,6 +119,9 @@ styles/
 
 vendor/
   iamjarl-tokens.css         Vendored copy of the design system tokens (v0.5.0)
+  three/
+    three.module.js          Three.js r160, vendored — the import map points
+                             here, so nothing is fetched from a CDN at runtime
   three-addons/              Three.js post-processing addons, pinned to 0.160.0
                              (EffectComposer, UnrealBloomPass, OutputPass, …) —
                              vendored so bloom adds no external dependency and

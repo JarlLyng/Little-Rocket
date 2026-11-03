@@ -7,9 +7,8 @@
  *   - App shell requests are network-first with cache fallback, so a new
  *     deploy is live on the very next load — no waiting for the SW update
  *     cycle. Offline still gets the cached shell.
- *   - Runtime cache-first for everything else GET: the Three.js CDN module and
- *     the audio loops get cached the first time they're fetched, then served
- *     from cache on later visits.
+ *   - Runtime cache-first for everything else GET: the audio loops get cached
+ *     the first time they're fetched, then served from cache on later visits.
  *   - `/api/*` always goes to the network — the collective counter must never
  *     be served stale, and POSTs must never be intercepted.
  *
@@ -17,7 +16,7 @@
  * step deletes every older cache so clients don't get a stale shell.
  */
 
-const CACHE = 'little-rocket-v6';
+const CACHE = 'little-rocket-v7';
 
 const PRECACHE = [
   '/',
@@ -56,6 +55,10 @@ const PRECACHE = [
   '/vendor/three-addons/shaders/CopyShader.js',
   '/vendor/three-addons/shaders/LuminosityHighPassShader.js',
   '/vendor/three-addons/shaders/OutputShader.js',
+  // Three.js itself, vendored at the pinned version. The largest single asset
+  // by far (~1.2 MB raw), but precaching it is the whole point: without it a
+  // cold offline load has no renderer and the game can't start.
+  '/vendor/three/three.module.js',
 ];
 
 self.addEventListener('install', (event) => {
